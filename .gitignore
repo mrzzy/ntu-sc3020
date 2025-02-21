@@ -69,3 +69,6 @@ CMakeUserPresets.json
 
 # External projects
 *-prefix/
+
+### Clangd ###
+.cache/
