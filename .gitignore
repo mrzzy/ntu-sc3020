@@ -72,3 +72,6 @@ CMakeUserPresets.json
 
 ### Clangd ###
 .cache/
+
+# build directory
+build/

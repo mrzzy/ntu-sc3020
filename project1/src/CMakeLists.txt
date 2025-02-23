@@ -1,4 +1,45 @@
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(sc3020_p1)
+
+# export compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# c++ standard
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_ENABLE_EXPORTS ON)
+
+# build library to share objects between main executable & test executable
+add_library(sc3020_p1_lib OBJECT
+  fs.cpp
+  fs.h
+)
+
+# build main executable
 add_executable(sc3020_p1 main.cpp)
+target_link_libraries(sc3020_p1 sc3020_p1_lib)
+
+# Unit testing
+# setup googletest as test runner
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/3fbe4db9a39291ae8d7a9c5f1d75896bb4c5a18f.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+enable_testing()
+add_executable(
+  sc3020_p1_test
+  # test files
+  main_test.cpp
+  fs_test.cpp
+)
+target_link_libraries(
+  sc3020_p1_test
+  sc3020_p1_lib
+  GTest::gtest_main
+)
+include(GoogleTest)
+gtest_discover_tests(sc3020_p1_test)
