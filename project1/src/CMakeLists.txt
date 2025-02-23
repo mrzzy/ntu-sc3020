@@ -33,7 +33,6 @@ enable_testing()
 add_executable(
   sc3020_p1_test
   # test files
-  main_test.cpp
   fs_test.cpp
 )
 target_link_libraries(
