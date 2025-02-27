@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #ifndef RECORD_H
 #define RECORD_H 1
@@ -47,6 +48,10 @@ public:
   std::string to_tsv() const;
   /** Define equality operator for comparison */
   bool operator==(const Record &other) const;
+  /** Size of the record in bytes without padding */
+  static size_t size() {
+    return offsetof(Record, home_team_wins) + sizeof(bool);
+  }
 };
 time_t parse_date(const std::string &dateStr);
 std::string format_date(time_t date);
