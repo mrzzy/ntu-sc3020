@@ -5,11 +5,32 @@
  */
 
 #include "data.h"
+#include "fs.h"
 #include "id.h"
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
 #include <iterator>
+#include <ostream>
+#include <sstream>
+#include <stdexcept>
+
+Data::Data() {
+  // determine data block record capacity from fs block size
+  // header: 1 uint8_t storing number of records in block
+  size_t header_size = sizeof(uint8_t);
+  // need to store both record and record id mapping for each record
+  size_t record_size = Record::size() + sizeof(RecordID);
+  capacity = (block_size() - header_size) / record_size;
+}
 
 RecordID Data::insert(const Record &record) {
+  // reject inserts exceeding capacity
+  if (size() >= capacity) {
+    throw std::runtime_error("Data::insert(): insert exceeds block capacity");
+  }
+
   // locate insertion position: find last occurrence of the records key
   auto insert_it = std::upper_bound(
       fg_pct_home.begin(), fg_pct_home.end(), record.key(),
@@ -43,12 +64,47 @@ RecordID Data::insert(const Record &record) {
 }
 
 Record Data::get(RecordID id) {
-  // look position of record in block
+  // lookup position of record in block
+  if (id < 0 || id >= record_pos.size()) {
+    std::ostringstream ss;
+    ss << "Data::get(): Invalid record id: " << id;
+    throw std::runtime_error(ss.str());
+  }
   int i = record_pos[id];
 
   return {
       game_date_est[i], team_id_home[i], fg_pct_home[i],
       ft_pct_home[i],   fg3_pct_home[i], pts_home[i],
-      ast_home[i],      reb_home[i],     home_team_wins[i],
+      ast_home[i],      reb_home[i],     static_cast<bool>(home_team_wins[i]),
   };
+}
+
+/** Compute the size of a vector in bytes */
+template <typename T> size_t n_bytes(const std::vector<T> &vec) {
+  return vec.size() * sizeof(T);
+}
+
+void Data::write(std::ostream &out) const {
+  // write metadata: header & record map
+  uint8_t size_ = size();
+  out.write(reinterpret_cast<const char *>(&size_), sizeof(uint8_t));
+  out.write(reinterpret_cast<const char *>(record_pos.data()),
+            n_bytes(record_pos));
+
+  // write record data in columar fashion
+  out.write(reinterpret_cast<const char *>(game_date_est.data()),
+            n_bytes(game_date_est));
+  out.write(reinterpret_cast<const char *>(team_id_home.data()),
+            n_bytes(team_id_home));
+  out.write(reinterpret_cast<const char *>(fg_pct_home.data()),
+            n_bytes(fg_pct_home));
+  out.write(reinterpret_cast<const char *>(ft_pct_home.data()),
+            n_bytes(ft_pct_home));
+  out.write(reinterpret_cast<const char *>(fg3_pct_home.data()),
+            n_bytes(fg3_pct_home));
+  out.write(reinterpret_cast<const char *>(pts_home.data()), n_bytes(pts_home));
+  out.write(reinterpret_cast<const char *>(ast_home.data()), n_bytes(ast_home));
+  out.write(reinterpret_cast<const char *>(reb_home.data()), n_bytes(reb_home));
+  out.write(reinterpret_cast<const char *>(home_team_wins.data()),
+            n_bytes(home_team_wins));
 }

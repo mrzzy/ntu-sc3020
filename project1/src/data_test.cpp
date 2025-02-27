@@ -5,8 +5,11 @@
  */
 
 #include "data.h"
+#include "fs.h"
 #include "id.h"
 #include <gtest/gtest.h>
+#include <ostream>
+#include <sstream>
 #include <string>
 
 TEST(data_test, test_insert_get) {
@@ -20,10 +23,32 @@ TEST(data_test, test_insert_get) {
       "0.313	22	37	1");
   RecordID id2 = block.insert(record2);
   ASSERT_NE(id1, id2);
+
+  // check capacity check
+  for(int i = block.capacity - 2; i > 0; i --) {
+    block.insert(record1);
+  }
+  ASSERT_THROW(block.insert(record1), std::runtime_error);
   
   // check data stored in sorted order
   EXPECT_LE(block.fg_pct_home[0], block.fg_pct_home[1]);
 
   ASSERT_EQ(block.get(id1), record1);
   ASSERT_EQ(block.get(id2), record2);
+  ASSERT_THROW(block.get(999), std::runtime_error);
+}
+
+TEST(data_test, test_write) {
+  Data block;
+  Record record = Record::from_tsv(
+      "1/1/1970	1610612739	114	0.582	0.786	"
+      "0.313	22	37	1");
+  for(int i = 0; i < block.capacity; i++) {
+    block.insert(record);
+  }
+
+  std::ostringstream out;
+  block.write(out);
+  std::cout << "wrote block size:" << out.tellp() << std::endl;
+  ASSERT_LE(out.tellp(), block_size());
 }
