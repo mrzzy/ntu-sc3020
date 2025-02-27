@@ -15,6 +15,7 @@ add_library(sc3020_p1_lib OBJECT
   fs.cpp
   record.h
   record.cpp
+  block.h
   data.h
   data.cpp
 )

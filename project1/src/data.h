@@ -1,12 +1,11 @@
-#include <istream>
-#include <ostream>
-#ifndef BLOCK_H
-#define BLOCK_H 1;
+#ifndef DATA_H
+#define DATA_H 1;
 /*
  * SC3020
  * Project 1
  * Data Block
  */
+#include "block.h"
 #include "id.h"
 #include "record.h"
 #include <cstdint>
@@ -14,7 +13,7 @@
 #include <vector>
 
 /** Data Block to store games.txt data */
-class Data {
+class Data : Block {
 public:
   // no. of records the data block can store
   uint8_t capacity;
@@ -36,8 +35,6 @@ public:
   std::vector<uint8_t> home_team_wins;
 
   Data();
-  /** Read the data block as from the given stream */
-  void read(std::istream &in);
   /** Insert the given record into the data block */
   RecordID insert(const Record &record);
   /** Get the record for given record ID */
@@ -46,10 +43,12 @@ public:
   std::vector<RecordID> find(Key key);
   /** Current number of inserted records */
   uint8_t size() const { return record_pos.size(); }
+  /** Read the data block as from the given stream */
+  virtual void read(std::istream &in);
   /** Write the data block as bytes into the given stream */
-  void write(std::ostream &out) const;
+  virtual void write(std::ostream &out) const;
 
   bool operator==(const Data &other) const;
 };
 
-#endif /* ifndef BLOCK_H */
+#endif /* ifndef DATA_H */
