@@ -10,11 +10,13 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <iterator>
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 Data::Data() {
   // determine data block record capacity from fs block size
@@ -25,11 +27,18 @@ Data::Data() {
   capacity = (block_size() - header_size) / record_size;
 }
 
+template <typename T>
+void read_vec(std::istream &in, std::vector<T> &vec, uint8_t size) {
+  // allocate space in vector for items
+  vec.resize(size);
+  in.read(reinterpret_cast<char *>(vec.data()), sizeof(T) * size);
+}
 RecordID Data::insert(const Record &record) {
   // reject inserts exceeding capacity
   if (size() >= capacity) {
     throw std::runtime_error("Data::insert(): insert exceeds block capacity");
   }
+  
 
   // locate insertion position: find last occurrence of the records key
   auto insert_it = std::upper_bound(
@@ -79,32 +88,54 @@ Record Data::get(RecordID id) {
   };
 }
 
-/** Compute the size of a vector in bytes */
-template <typename T> size_t n_bytes(const std::vector<T> &vec) {
-  return vec.size() * sizeof(T);
+void Data::read(std::istream &in) {
+  uint8_t size = 0;
+  // read metadata
+  in.read(reinterpret_cast<char *>(&size), sizeof(size));
+  read_vec(in, record_pos, size);
+  // read record data
+  read_vec(in, game_date_est, size);
+  read_vec(in, team_id_home, size);
+  read_vec(in, fg_pct_home, size);
+  read_vec(in, ft_pct_home, size);
+  read_vec(in, fg3_pct_home, size);
+  read_vec(in, pts_home, size);
+  read_vec(in, ast_home, size);
+  read_vec(in, reb_home, size);
+  read_vec(in, home_team_wins, size);
+}
+
+
+/** Write vector as bytes to the given ostream */
+template <typename T>
+void write_vec(const std::vector<T> &vec, std::ostream &out) {
+  out.write(reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
 }
 
 void Data::write(std::ostream &out) const {
-  // write metadata: header & record map
+  // write metadata: header & record_pos map
   uint8_t size_ = size();
-  out.write(reinterpret_cast<const char *>(&size_), sizeof(uint8_t));
-  out.write(reinterpret_cast<const char *>(record_pos.data()),
-            n_bytes(record_pos));
-
+  out.write(reinterpret_cast<const char *>(&size_), sizeof(size_));
+  write_vec(record_pos, out);
   // write record data in columar fashion
-  out.write(reinterpret_cast<const char *>(game_date_est.data()),
-            n_bytes(game_date_est));
-  out.write(reinterpret_cast<const char *>(team_id_home.data()),
-            n_bytes(team_id_home));
-  out.write(reinterpret_cast<const char *>(fg_pct_home.data()),
-            n_bytes(fg_pct_home));
-  out.write(reinterpret_cast<const char *>(ft_pct_home.data()),
-            n_bytes(ft_pct_home));
-  out.write(reinterpret_cast<const char *>(fg3_pct_home.data()),
-            n_bytes(fg3_pct_home));
-  out.write(reinterpret_cast<const char *>(pts_home.data()), n_bytes(pts_home));
-  out.write(reinterpret_cast<const char *>(ast_home.data()), n_bytes(ast_home));
-  out.write(reinterpret_cast<const char *>(reb_home.data()), n_bytes(reb_home));
-  out.write(reinterpret_cast<const char *>(home_team_wins.data()),
-            n_bytes(home_team_wins));
+  write_vec(game_date_est, out);
+  write_vec(team_id_home, out);
+  write_vec(fg_pct_home, out);
+  write_vec(ft_pct_home, out);
+  write_vec(fg3_pct_home, out);
+  write_vec(pts_home, out);
+  write_vec(ast_home, out);
+  write_vec(reb_home, out);
+  write_vec(home_team_wins, out);
+}
+
+// Overload equality operator
+bool Data::operator==(const Data &other) const {
+  return this->size() == other.size();
+  record_pos == other.record_pos &&game_date_est ==
+      other.game_date_est &&team_id_home == other.team_id_home &&fg_pct_home ==
+      other.fg_pct_home &&ft_pct_home == other.ft_pct_home &&fg3_pct_home ==
+      other.fg3_pct_home &&pts_home == other.pts_home &&ast_home ==
+      other.ast_home &&reb_home == other.reb_home &&home_team_wins ==
+      other.home_team_wins;
 }

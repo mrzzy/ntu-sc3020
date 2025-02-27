@@ -25,11 +25,11 @@ TEST(data_test, test_insert_get) {
   ASSERT_NE(id1, id2);
 
   // check capacity check
-  for(int i = block.capacity - 2; i > 0; i --) {
+  for (int i = block.capacity - 2; i > 0; i--) {
     block.insert(record1);
   }
   ASSERT_THROW(block.insert(record1), std::runtime_error);
-  
+
   // check data stored in sorted order
   EXPECT_LE(block.fg_pct_home[0], block.fg_pct_home[1]);
 
@@ -38,17 +38,23 @@ TEST(data_test, test_insert_get) {
   ASSERT_THROW(block.get(999), std::runtime_error);
 }
 
-TEST(data_test, test_write) {
+TEST(data_test, test_write_read) {
   Data block;
   Record record = Record::from_tsv(
       "1/1/1970	1610612739	114	0.582	0.786	"
       "0.313	22	37	1");
-  for(int i = 0; i < block.capacity; i++) {
+  for (int i = 0; i < block.capacity; i++) {
     block.insert(record);
   }
 
-  std::ostringstream out;
-  block.write(out);
-  std::cout << "wrote block size:" << out.tellp() << std::endl;
-  ASSERT_LE(out.tellp(), block_size());
+  // test write
+  std::stringstream ss;
+  block.write(ss);
+  std::cout << "wrote block size:" << ss.tellp() << std::endl;
+  ASSERT_LE(ss.tellp(), block_size());
+
+  // test read from write
+  Data read;
+  read.read(ss);
+  ASSERT_EQ(block, read);
 }
