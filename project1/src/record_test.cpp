@@ -6,6 +6,7 @@
 
 #include "record.h"
 #include <gtest/gtest.h>
+#include <iostream>
 #include <string>
 
 TEST(record_test, test_from_to_tsv) {
@@ -17,6 +18,7 @@ TEST(record_test, test_from_to_tsv) {
   EXPECT_EQ(record.team_id_home, 1610612739);
   EXPECT_EQ(record.pts_home, 114);
   EXPECT_FLOAT_EQ(record.fg_pct_home, 0.482);
+  EXPECT_FLOAT_EQ(record.key(), 482000);
   EXPECT_FLOAT_EQ(record.ft_pct_home, 0.786);
   EXPECT_FLOAT_EQ(record.fg3_pct_home, 0.313);
   EXPECT_EQ(record.ast_home, 22);
@@ -24,4 +26,6 @@ TEST(record_test, test_from_to_tsv) {
   EXPECT_EQ(record.home_team_wins, true);
 
   EXPECT_EQ(record.to_tsv(), tsv);
+  
+  std::cout << "Record size:" << sizeof(Record) << std::endl;
 }
