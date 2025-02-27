@@ -15,6 +15,8 @@ add_library(sc3020_p1_lib OBJECT
   fs.cpp
   record.h
   record.cpp
+  data.h
+  data.cpp
 )
 
 # build main executable
@@ -37,6 +39,7 @@ add_executable(
   # test files
   fs_test.cpp
   record_test.cpp
+  data_test.cpp
 )
 target_link_libraries(
   sc3020_p1_test
