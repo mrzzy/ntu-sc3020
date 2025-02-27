@@ -31,17 +31,22 @@ public:
   uint8_t reb_home;
   bool home_team_wins;
 
-  /** Get the key of the Record */
-  Key key() {
+  /** Convert the given key value into a comparable key */
+  static Key to_key(float value) {
     // convert floating point key value to int for reliable comparison
-    return fg_pct_home * 1000000;
+    return value * 1000000;
   }
+
+  /** Get the key of the Record */
+  Key key() const { return Record::to_key(fg_pct_home); }
 
   /** Read record from TSV row by position */
   static Record from_tsv(const std::string &tsvRow);
 
   /** Render record as TSV row string */
   std::string to_tsv() const;
+  /** Define equality operator for comparison */
+  bool operator==(const Record &other) const;
 };
 time_t parse_date(const std::string &dateStr);
 std::string format_date(time_t date);

@@ -6,7 +6,6 @@
 
 #include "record.h"
 #include <gtest/gtest.h>
-#include <iostream>
 #include <string>
 
 TEST(record_test, test_from_to_tsv) {
@@ -25,7 +24,6 @@ TEST(record_test, test_from_to_tsv) {
   EXPECT_EQ(record.reb_home, 37);
   EXPECT_EQ(record.home_team_wins, true);
 
+  EXPECT_EQ(record, Record::from_tsv(tsv));
   EXPECT_EQ(record.to_tsv(), tsv);
-  
-  std::cout << "Record size:" << sizeof(Record) << std::endl;
 }

@@ -75,3 +75,13 @@ std::string Record::to_tsv() const {
      << (home_team_wins ? "1" : "0");
   return ss.str();
 }
+
+bool Record::operator==(const Record &other) const {
+  return game_date_est == other.game_date_est &&
+         team_id_home == other.team_id_home &&
+         to_key(fg_pct_home) == to_key(other.fg_pct_home) &&
+         to_key(ft_pct_home) == to_key(other.ft_pct_home) &&
+         to_key(fg3_pct_home) == to_key(other.fg3_pct_home) &&
+         pts_home == other.pts_home && ast_home == other.ast_home &&
+         reb_home == other.reb_home && home_team_wins == other.home_team_wins;
+}
