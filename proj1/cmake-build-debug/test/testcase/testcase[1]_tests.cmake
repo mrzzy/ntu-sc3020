@@ -1,0 +1,5 @@
+add_test([=[InsertCheck.tst_insert]=]  /Users/zuozhiyi/Downloads/bptree/proj1/cmake-build-debug/test/testcase/testcase [==[--gtest_filter=InsertCheck.tst_insert]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[InsertCheck.tst_insert]=]  PROPERTIES WORKING_DIRECTORY /Users/zuozhiyi/Downloads/bptree/proj1/cmake-build-debug/test/testcase SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[LoadCheck.tst_load_data]=]  /Users/zuozhiyi/Downloads/bptree/proj1/cmake-build-debug/test/testcase/testcase [==[--gtest_filter=LoadCheck.tst_load_data]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[LoadCheck.tst_load_data]=]  PROPERTIES WORKING_DIRECTORY /Users/zuozhiyi/Downloads/bptree/proj1/cmake-build-debug/test/testcase SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  testcase_TESTS InsertCheck.tst_insert LoadCheck.tst_load_data)
