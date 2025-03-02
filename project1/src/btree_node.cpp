@@ -6,7 +6,9 @@
 
 #include "btree_node.h"
 #include "fs.h"
+#include "id.h"
 #include <cstddef>
+#include <iostream>
 
 BTreeNode::BTreeNode() {
   // determine btree node key capacity based on fs block size
@@ -15,7 +17,7 @@ BTreeNode::BTreeNode() {
   size_t pointer_size = sizeof(BlockID);
   // ensure space for n keys and n+1 pointers + header
   capacity = (block_size() - header_size - pointer_size) /
-           (sizeof(Key) + pointer_size);
+             (sizeof(Key) + pointer_size);
 }
 
 void BTreeNode::read(std::istream &in) {
@@ -39,6 +41,8 @@ void BTreeNode::write(std::ostream &out) const {
 
 // Directly implemented equality operator
 bool BTreeNode::operator==(const BTreeNode &other) const {
+  std::cout << "l: " << pointers.size() << " r: " << other.pointers.size()
+            << std::endl;
   return capacity == other.capacity && keys == other.keys &&
          pointers == other.pointers;
 }

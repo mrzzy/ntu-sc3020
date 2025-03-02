@@ -1,4 +1,3 @@
-#include <cstddef>
 #include <cstdint>
 #ifndef BTREE_H
 #define BTREE_H 1
@@ -23,18 +22,22 @@ public:
   /** Block Pointer(s) (BlockIDs) maintained by the BTree node. */
   std::vector<BlockID> pointers;
 
+  /** Construct empty BTree node. Only use for creating a node for reading. */
   BTreeNode();
+  /** Construct Btree node with initial pointer */
+  BTreeNode(BlockID pointer) : BTreeNode() { pointers.push_back(pointer); }
 
   /** Read the data block as bytes into the given stream */
   virtual void read(std::istream &in) override;
   /** Write the data block as bytes into the given stream */
   virtual void write(std::ostream &out) const override;
-  /** Insert the given key into the btree node */
-  void insert(Key key);
+  /** Insert the given key & greater than or equal pointer into the btree node
+   */
+  void insert(Key key, BlockID ge_pointer);
   // Equality operator
   bool operator==(const BTreeNode &other) const;
   /** No. of keys currently maintained by the B+Tree node */
-  size_t size() const { return keys.size(); }
+  uint16_t size() const { return keys.size(); }
 };
 
 #endif /* ifndef BTREE_H */
