@@ -44,9 +44,9 @@ public:
   /** Current number of inserted records */
   uint8_t count() const { return record_pos.size(); }
   /** Read the data block as from the given stream */
-  virtual void read(std::istream &in);
+  virtual void read(std::istream &in) override;
   /** Write the data block as bytes into the given stream */
-  virtual void write(std::ostream &out) const;
+  virtual void write(std::ostream &out) const override;
 
   bool operator==(const Data &other) const;
 };

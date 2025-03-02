@@ -27,12 +27,6 @@ Data::Data() {
   capacity = (block_size() - header_size) / record_size;
 }
 
-template <typename T>
-void read_vec(std::istream &in, std::vector<T> &vec, uint8_t size) {
-  // allocate space in vector for items
-  vec.resize(size);
-  in.read(reinterpret_cast<char *>(vec.data()), sizeof(T) * size);
-}
 RecordID Data::insert(const Record &record) {
   // reject inserts exceeding capacity
   if (count() >= capacity) {
@@ -102,12 +96,6 @@ void Data::read(std::istream &in) {
   read_vec(in, ast_home, size);
   read_vec(in, reb_home, size);
   read_vec(in, home_team_wins, size);
-}
-
-/** Write vector as bytes to the given ostream */
-template <typename T>
-void write_vec(const std::vector<T> &vec, std::ostream &out) {
-  out.write(reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
 }
 
 void Data::write(std::ostream &out) const {

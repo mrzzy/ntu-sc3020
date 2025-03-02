@@ -18,6 +18,8 @@ add_library(sc3020_p1_lib OBJECT
   block.h
   data.h
   data.cpp
+  btree_node.h
+  btree_node.cpp
 )
 
 # build main executable
@@ -41,6 +43,7 @@ add_executable(
   fs_test.cpp
   record_test.cpp
   data_test.cpp
+  btree_node_test.cpp
 )
 target_link_libraries(
   sc3020_p1_test
