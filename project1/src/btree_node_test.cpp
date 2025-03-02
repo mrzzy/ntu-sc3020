@@ -9,14 +9,14 @@
 
 TEST(btree_node_test, test_read_write_insert) {
   // add n_keys + 1 pointer
-  BTreeNode node(0);
+  BTreeNode node(0, BTreeNodeKindLeaf);
   for (uint16_t i = node.capacity; i > 0; i--) {
     node.insert(i, i);
   }
-  
+
   // check keys inserted in sorted order
   ASSERT_LE(node.keys[1], node.keys[2]);
-  ASSERT_LE(node.keys[node.capacity - 2], node.keys[node.capacity-1]);
+  ASSERT_LE(node.keys[node.capacity - 2], node.keys[node.capacity - 1]);
 
   std::stringstream ss;
   node.write(ss);
@@ -24,5 +24,6 @@ TEST(btree_node_test, test_read_write_insert) {
 
   BTreeNode read;
   read.read(ss);
+  ASSERT_EQ(node.kind, BTreeNodeKindLeaf);
   ASSERT_EQ(node, read);
 }

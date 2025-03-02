@@ -8,12 +8,17 @@
 #include "fs.h"
 #include "id.h"
 #include <algorithm>
+#include <bitset>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
+#include <ostream>
 
-BTreeNode::BTreeNode() {
+BTreeNode::BTreeNode() : kind(BTreeNodeKindInternal) {
   // determine btree node key capacity based on fs block size
-  // header: 1 uint16_t storing number of keys in the in block
+  // header 1 uint16_t:
+  // * msb (15) bit: node kind
+  // * 14-0 bit: storing number of keys in the in block
   size_t header_size = sizeof(uint16_t);
   size_t pointer_size = sizeof(BlockID);
   // ensure space for n keys and n+1 pointers + header
@@ -21,10 +26,22 @@ BTreeNode::BTreeNode() {
              (sizeof(Key) + pointer_size);
 }
 
+BTreeNode::BTreeNode(BlockID pointer, BTreeNodeKind kind) : BTreeNode() {
+  pointers.push_back(pointer);
+  this->kind = kind;
+}
+
+/** mask used to obtain btree node kind bit from header */
+constexpr uint16_t HEADER_KIND_BIT = 15;
+
 void BTreeNode::read(std::istream &in) {
-  // header: read n no. of keys
-  uint16_t size_;
-  in.read(reinterpret_cast<char *>(&size_), sizeof(size_));
+  // header: read n no. of keys & node type
+  uint16_t size_kind;
+  in.read(reinterpret_cast<char *>(&size_kind), sizeof(size_kind));
+  kind = static_cast<BTreeNodeKind>((size_kind & (1 << HEADER_KIND_BIT)) >>
+                                    HEADER_KIND_BIT);
+  uint16_t size_ = size_kind & (~(1 << HEADER_KIND_BIT));
+
   // read n keys
   read_vec(in, keys, size_);
   // read n+1 pointers
@@ -32,9 +49,11 @@ void BTreeNode::read(std::istream &in) {
 }
 
 void BTreeNode::write(std::ostream &out) const {
-  // header: no. of keys stored by btree block
-  uint16_t size_ = size();
-  out.write(reinterpret_cast<const char *>(&size_), sizeof(size_));
+  // header: no. of keys stored by btree block & node type
+  uint16_t size_kind = size() & (~(1 << HEADER_KIND_BIT));
+  size_kind |= (static_cast<uint16_t>(kind) << HEADER_KIND_BIT);
+  out.write(reinterpret_cast<const char *>(&size_kind), sizeof(size_kind));
+
   // write btree keys & pointers
   write_vec(keys, out);
   write_vec(pointers, out);
@@ -59,5 +78,5 @@ void BTreeNode::insert(Key key, BlockID ge_pointer) {
 
 bool BTreeNode::operator==(const BTreeNode &other) const {
   return capacity == other.capacity && keys == other.keys &&
-         pointers == other.pointers;
+         pointers == other.pointers && kind == other.kind;
 }
