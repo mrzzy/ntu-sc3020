@@ -43,6 +43,7 @@ TEST(data_test, test_write_read) {
   Record record = Record::from_tsv(
       "1/1/1970	1610612739	114	0.582	0.786	"
       "0.313	22	37	1");
+  block.next_id = 222;
   for (int i = 0; i < block.capacity; i++) {
     block.insert(record);
   }

@@ -13,18 +13,19 @@
 #include <cstdio>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
 
-Data::Data() {
+Data::Data() : next_id(std::numeric_limits<BlockID>::max()) {
   // determine data block record capacity from fs block size
   // header: 1 uint8_t storing number of records in block
   size_t header_size = sizeof(uint8_t);
   // need to store both record and record id mapping for each record
   size_t record_size = Record::size() + sizeof(RecordID);
-  capacity = (block_size() - header_size) / record_size;
+  capacity = (block_size() - header_size - sizeof(next_id)) / record_size;
 }
 
 RecordID Data::insert(const Record &record) {
@@ -85,6 +86,7 @@ void Data::read(std::istream &in) {
   uint8_t size = 0;
   // read metadata
   in.read(reinterpret_cast<char *>(&size), sizeof(size));
+  in.read(reinterpret_cast<char *>(&next_id), sizeof(BlockID));
   read_vec(in, record_pos, size);
   // read record data
   read_vec(in, game_date_est, size);
@@ -99,9 +101,10 @@ void Data::read(std::istream &in) {
 }
 
 void Data::write(std::ostream &out) const {
-  // write metadata: header & record_pos map
+  // write metadata
   uint8_t size_ = count();
   out.write(reinterpret_cast<const char *>(&size_), sizeof(size_));
+  out.write(reinterpret_cast<const char *>(&next_id), sizeof(BlockID));
   write_vec(record_pos, out);
   // write record data in columar fashion
   write_vec(game_date_est, out);
@@ -123,5 +126,5 @@ bool Data::operator==(const Data &other) const {
       other.fg_pct_home &&ft_pct_home == other.ft_pct_home &&fg3_pct_home ==
       other.fg3_pct_home &&pts_home == other.pts_home &&ast_home ==
       other.ast_home &&reb_home == other.reb_home &&home_team_wins ==
-      other.home_team_wins;
+      other.home_team_wins && next_id == other.next_id;
 }

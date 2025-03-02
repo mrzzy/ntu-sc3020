@@ -34,6 +34,10 @@ public:
   // store home_team_wins boolean as uint8_t as vector<bool> is a bitmap
   std::vector<uint8_t> home_team_wins;
 
+  // Block id to the next overflow data block if any or BLOCK_ID max value if
+  // none
+  BlockID next_id;
+
   Data();
   /** Insert the given record into the data block */
   RecordID insert(const Record &record);
