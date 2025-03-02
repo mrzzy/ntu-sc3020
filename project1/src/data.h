@@ -43,8 +43,6 @@ public:
   RecordID insert(const Record &record);
   /** Get the record for given record ID */
   Record get(RecordID id);
-  /** Find the record Ids with the given key */
-  std::vector<RecordID> find(Key key);
   /** Current number of inserted records */
   uint8_t count() const { return record_pos.size(); }
   /** Read the data block as from the given stream */
