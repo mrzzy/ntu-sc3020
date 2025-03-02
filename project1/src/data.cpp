@@ -34,7 +34,7 @@ RecordID Data::insert(const Record &record) {
     throw std::runtime_error("Data::insert(): insert exceeds block capacity");
   }
 
-  // locate insertion position: find last occurrence of the records key
+  // locate insertion position: before next greater key
   auto insert_it = std::upper_bound(
       fg_pct_home.begin(), fg_pct_home.end(), record.key(),
       [](Key key, float value) { return key > Record::to_key(value); });

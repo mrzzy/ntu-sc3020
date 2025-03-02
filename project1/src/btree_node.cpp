@@ -7,6 +7,7 @@
 #include "btree_node.h"
 #include "fs.h"
 #include "id.h"
+#include <algorithm>
 #include <cstddef>
 #include <iostream>
 
@@ -39,10 +40,24 @@ void BTreeNode::write(std::ostream &out) const {
   write_vec(pointers, out);
 }
 
-// Directly implemented equality operator
+void BTreeNode::insert(Key key, BlockID ge_pointer) {
+  // reject inserts exceeding capacity
+  if (size() >= capacity) {
+    throw std::runtime_error(
+        "BTreeNode::insert(): insert exceeds block capacity");
+  }
+
+  // locate insertion position: before next greater key
+  auto insert_it = std::upper_bound(keys.begin(), keys.end(), key);
+  auto insert_at = std::distance(keys.begin(), insert_it);
+
+  // insert key
+  keys.insert(insert_it, key);
+  // insert ge_pointer at key + 1 position since there is n_keys + 1 pointers
+  pointers.insert(pointers.begin() + insert_at + 1, ge_pointer);
+}
+
 bool BTreeNode::operator==(const BTreeNode &other) const {
-  std::cout << "l: " << pointers.size() << " r: " << other.pointers.size()
-            << std::endl;
   return capacity == other.capacity && keys == other.keys &&
          pointers == other.pointers;
 }
