@@ -37,7 +37,7 @@ RecordID Data::insert(const Record &record) {
   // locate insertion position: find last occurrence of the records key
   auto insert_it = std::upper_bound(
       fg_pct_home.begin(), fg_pct_home.end(), record.key(),
-      [](Key key, float value) { return Record::to_key(value) <= key; });
+      [](Key key, float value) { return key > Record::to_key(value); });
   auto insert_at = std::distance(fg_pct_home.begin(), insert_it);
 
   // Insert record values into all column vectors

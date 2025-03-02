@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #ifndef BTREE_H
 #define BTREE_H 1
@@ -7,7 +8,6 @@
  * BTree Node
  */
 
-#include "data.h"
 #include "id.h"
 #include <vector>
 
@@ -16,9 +16,9 @@
 /** B+Tree Index node block */
 class BTreeNode : Block {
 public:
-  /** No. of keys maintained by the B+Tree node */
-  uint16_t n_keys;
-  /** Keys maintained by the B+Tree node */
+  /** No. of keys that can be maintained by the B+Tree node */
+  uint16_t capacity;
+  /** Keys maintained by the B+Tree node in aseconding sorted order. */
   std::vector<Key> keys;
   /** Block Pointer(s) (BlockIDs) maintained by the BTree node. */
   std::vector<BlockID> pointers;
@@ -29,9 +29,12 @@ public:
   virtual void read(std::istream &in) override;
   /** Write the data block as bytes into the given stream */
   virtual void write(std::ostream &out) const override;
-
+  /** Insert the given key into the btree node */
+  void insert(Key key);
   // Equality operator
   bool operator==(const BTreeNode &other) const;
+  /** No. of keys currently maintained by the B+Tree node */
+  size_t size() const { return keys.size(); }
 };
 
 #endif /* ifndef BTREE_H */
