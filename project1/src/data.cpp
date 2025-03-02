@@ -35,15 +35,14 @@ void read_vec(std::istream &in, std::vector<T> &vec, uint8_t size) {
 }
 RecordID Data::insert(const Record &record) {
   // reject inserts exceeding capacity
-  if (size() >= capacity) {
+  if (count() >= capacity) {
     throw std::runtime_error("Data::insert(): insert exceeds block capacity");
   }
-  
 
   // locate insertion position: find last occurrence of the records key
   auto insert_it = std::upper_bound(
       fg_pct_home.begin(), fg_pct_home.end(), record.key(),
-      [](float value, Key key) { return Record::to_key(value) <= key; });
+      [](Key key, float value) { return Record::to_key(value) <= key; });
   auto insert_at = std::distance(fg_pct_home.begin(), insert_it);
 
   // Insert record values into all column vectors
@@ -105,7 +104,6 @@ void Data::read(std::istream &in) {
   read_vec(in, home_team_wins, size);
 }
 
-
 /** Write vector as bytes to the given ostream */
 template <typename T>
 void write_vec(const std::vector<T> &vec, std::ostream &out) {
@@ -114,7 +112,7 @@ void write_vec(const std::vector<T> &vec, std::ostream &out) {
 
 void Data::write(std::ostream &out) const {
   // write metadata: header & record_pos map
-  uint8_t size_ = size();
+  uint8_t size_ = count();
   out.write(reinterpret_cast<const char *>(&size_), sizeof(size_));
   write_vec(record_pos, out);
   // write record data in columar fashion
@@ -131,7 +129,7 @@ void Data::write(std::ostream &out) const {
 
 // Overload equality operator
 bool Data::operator==(const Data &other) const {
-  return this->size() == other.size();
+  return this->count() == other.count();
   record_pos == other.record_pos &&game_date_est ==
       other.game_date_est &&team_id_home == other.team_id_home &&fg_pct_home ==
       other.fg_pct_home &&ft_pct_home == other.ft_pct_home &&fg3_pct_home ==

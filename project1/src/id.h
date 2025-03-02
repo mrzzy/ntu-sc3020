@@ -10,6 +10,7 @@
 
 using BlockID = uint16_t;
 using RecordID = uint16_t;
+using Key = uint16_t;
 
 /** Identifier that uniquely identifies a data record */
 struct ID {

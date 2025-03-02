@@ -53,15 +53,27 @@ Record Record::from_tsv(const std::string &tsvRow) {
 
   // Convert and assign values
   Record r;
-  r.game_date_est = parse_date(fields[0]);
-  r.team_id_home = std::stoul(fields[1]);
-  r.pts_home = std::stoi(fields[2]);
-  r.fg_pct_home = std::stof(fields[3]);
-  r.ft_pct_home = std::stof(fields[4]);
-  r.fg3_pct_home = std::stof(fields[5]);
-  r.ast_home = std::stoi(fields[6]);
-  r.reb_home = std::stoi(fields[7]);
-  r.home_team_wins = (fields[8] == "1");
+  // null handling: assign max value if empty
+  r.game_date_est = fields[0].empty() ? std::numeric_limits<time_t>::max()
+                                      : parse_date(fields[0]);
+  r.team_id_home = fields[1].empty() ? std::numeric_limits<uint32_t>::max()
+                                     : std::stoul(fields[1]);
+  r.pts_home = fields[2].empty() ? std::numeric_limits<uint8_t>::max()
+                                 : std::stoi(fields[2]);
+  r.fg_pct_home = fields[3].empty() ? std::numeric_limits<float>::max()
+                                    : std::stof(fields[3]);
+  r.ft_pct_home = fields[4].empty() ? std::numeric_limits<float>::max()
+                                    : std::stof(fields[4]);
+  r.fg3_pct_home = fields[5].empty() ? std::numeric_limits<float>::max()
+                                     : std::stof(fields[5]);
+  r.ast_home = fields[6].empty() ? std::numeric_limits<uint8_t>::max()
+                                 : std::stoi(fields[6]);
+  r.reb_home = fields[7].empty() ? std::numeric_limits<uint8_t>::max()
+                                 : std::stoi(fields[7]);
+  r.home_team_wins =
+      fields[8].empty()
+          ? true
+          : (fields[8] == "1");
 
   return r;
 }

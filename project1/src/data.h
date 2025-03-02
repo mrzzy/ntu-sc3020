@@ -42,7 +42,7 @@ public:
   /** Find the record Ids with the given key */
   std::vector<RecordID> find(Key key);
   /** Current number of inserted records */
-  uint8_t size() const { return record_pos.size(); }
+  uint8_t count() const { return record_pos.size(); }
   /** Read the data block as from the given stream */
   virtual void read(std::istream &in);
   /** Write the data block as bytes into the given stream */

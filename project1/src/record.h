@@ -1,5 +1,9 @@
+#include "id.h"
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
+#include <limits>
 #ifndef RECORD_H
 #define RECORD_H 1
 /*
@@ -11,7 +15,6 @@
 #include <string>
 #include <string_view>
 
-using Key = int32_t;
 
 /** Record to store games.txt data. */
 class Record {
@@ -35,7 +38,10 @@ public:
   /** Convert the given key value into a comparable key */
   static Key to_key(float value) {
     // convert floating point key value to int for reliable comparison
-    return value * 1000000;
+    // here we make assumptions about the data:
+    // 1. data value is 0 <= x < 1 and has 3dps of precision
+    // 2. nan values are treated as maximum
+    return (value * 1000);
   }
 
   /** Get the key of the Record */
