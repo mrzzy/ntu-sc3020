@@ -1,6 +1,6 @@
 #include <cstdint>
-#ifndef BTREE_H
-#define BTREE_H 1
+#ifndef BTREE_NODE_H
+#define BTREE_NODE_H 1
 /*
  * SC3020
  * Project 1
@@ -52,4 +52,4 @@ public:
   uint16_t size() const { return keys.size(); }
 };
 
-#endif /* ifndef BTREE_H */
+#endif /* ifndef BTREE_NODE_H */

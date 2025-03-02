@@ -50,6 +50,9 @@ public:
   /** Write the data block as bytes into the given stream */
   virtual void write(std::ostream &out) const override;
 
+  /** Minimum record key of any record stored the data block */
+  Key key() const;
+
   bool operator==(const Data &other) const;
 };
 

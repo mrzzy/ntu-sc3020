@@ -19,6 +19,8 @@
 #include <stdexcept>
 #include <vector>
 
+#define KEY_COL fg_pct_home
+
 Data::Data() : next_id(std::numeric_limits<BlockID>::max()) {
   // determine data block record capacity from fs block size
   // header: 1 uint8_t storing number of records in block
@@ -36,9 +38,9 @@ RecordID Data::insert(const Record &record) {
 
   // locate insertion position: before next greater key
   auto insert_it = std::upper_bound(
-      fg_pct_home.begin(), fg_pct_home.end(), record.key(),
-      [](Key key, float value) { return key > Record::to_key(value); });
-  auto insert_at = std::distance(fg_pct_home.begin(), insert_it);
+      KEY_COL.begin(), KEY_COL.end(), record.key(),
+      [](Key key, float value) { return key < Record::to_key(value); });
+  auto insert_at = std::distance(KEY_COL.begin(), insert_it);
 
   // Insert record values into all column vectors
   game_date_est.insert(game_date_est.begin() + insert_at, record.game_date_est);
@@ -118,6 +120,12 @@ void Data::write(std::ostream &out) const {
   write_vec(home_team_wins, out);
 }
 
+Key Data::key() const {
+  // data kept in asecending sorted order: min is first item
+  return (KEY_COL.size() <= 0) ? std::numeric_limits<Key>::max()
+                               : Record::to_key(KEY_COL[0]);
+}
+
 // Overload equality operator
 bool Data::operator==(const Data &other) const {
   return this->count() == other.count();
@@ -126,5 +134,5 @@ bool Data::operator==(const Data &other) const {
       other.fg_pct_home &&ft_pct_home == other.ft_pct_home &&fg3_pct_home ==
       other.fg3_pct_home &&pts_home == other.pts_home &&ast_home ==
       other.ast_home &&reb_home == other.reb_home &&home_team_wins ==
-      other.home_team_wins && next_id == other.next_id;
+      other.home_team_wins &&next_id == other.next_id;
 }
