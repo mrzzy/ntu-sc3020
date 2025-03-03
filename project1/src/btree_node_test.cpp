@@ -22,7 +22,6 @@ TEST(btree_node_test, test_read_write) {
   ASSERT_EQ(node, read);
 }
 
-
 TEST(btree_node_test, insert_leaf) {
   BTreeNode node(BTreeNodeKindLeaf);
   for (uint16_t i = node.capacity; i > 0; i--) {
@@ -30,14 +29,14 @@ TEST(btree_node_test, insert_leaf) {
   }
 
   // check keys inserted in sorted order
-  for (uint16_t i = 0; i < node.size(); i ++) {
+  for (uint16_t i = 0; i < node.size(); i++) {
     ASSERT_LE(node.keys[i], node.keys[i + 1]);
   }
 }
 
 TEST(btree_node_test, insert_internal) {
   BTreeNode node(BTreeNodeKindInternal);
-  
+
   // check first insertion does not introduce key
   node.insert(555, 555);
   ASSERT_EQ(node.keys.size(), 0);
@@ -48,7 +47,7 @@ TEST(btree_node_test, insert_internal) {
   }
 
   // check keys inserted in sorted order
-  for (uint16_t i = 0; i < node.size(); i ++) {
+  for (uint16_t i = 0; i < node.size(); i++) {
     ASSERT_LE(node.keys[i], node.keys[i + 1]);
   }
 }

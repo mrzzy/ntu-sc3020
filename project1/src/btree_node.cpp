@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <limits>
 #include <ostream>
 #include <stdexcept>
 
@@ -70,7 +69,7 @@ void BTreeNode::insert(Key key, BlockID pointer) {
     if (pointers.size() <= 0) {
       // add additional pointer on first insertion into leaf node
       // this mantains the k+1 pointer to the k keys in the leaf node
-      pointers.push_back(std::numeric_limits<BlockID>::max());
+      pointers.push_back(BLOCK_NULL);
     }
     // leaf node: k pointer associated with key in same position k
     keys.insert(insert_it, key);

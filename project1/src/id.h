@@ -1,3 +1,4 @@
+#include <limits>
 #ifndef ID_H
 #define ID_H 1
 /*
@@ -11,6 +12,9 @@
 using BlockID = uint16_t;
 using RecordID = uint16_t;
 using Key = uint16_t;
+
+/** Block ID not pointing to any block */
+constexpr BlockID BLOCK_NULL = std::numeric_limits<BlockID>::max();
 
 /** Identifier that uniquely identifies a data record */
 struct ID {

@@ -21,7 +21,7 @@
 
 #define KEY_COL fg_pct_home
 
-Data::Data() : next_id(std::numeric_limits<BlockID>::max()) {
+Data::Data() : next_id(BLOCK_NULL) {
   // determine data block record capacity from fs block size
   // header: 1 uint8_t storing number of records in block
   size_t header_size = sizeof(uint8_t);

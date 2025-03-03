@@ -43,7 +43,7 @@ public:
    * Insert the given key & greater than or equal pointer 'ge_pointer'.
    * 'ge_pointer' points to block containing greater or equal keys.
    */
-  void insert(Key key, BlockID ge_pointer);
+  void insert(Key key, BlockID pointer);
   /** No. of keys currently maintained by the B+Tree node */
   uint16_t size() const { return keys.size(); }
   /** Whether the Btree node is currently full */
