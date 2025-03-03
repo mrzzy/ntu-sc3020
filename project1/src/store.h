@@ -11,9 +11,11 @@
 #include <memory>
 /** Abstract Block Store responsible for storing / fetching Blocks */
 class Store {
-  public:
+public:
   /** Inserts the given block into storage */
   virtual BlockID insert(std::shared_ptr<Block> block) = 0;
+  /** Update the block with given block_id in storage */
+  virtual void update(BlockID block_id, std::shared_ptr<Block> block) = 0;
   /** Gets the given block for the given block id */
   virtual std::shared_ptr<Block> get(BlockID id) const = 0;
 };

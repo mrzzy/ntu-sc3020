@@ -20,6 +20,8 @@ public:
 
   /** Inserts the given block into storage with the given block id. */
   virtual BlockID insert(std::shared_ptr<Block> block) override;
+  /** Update the block with given block_id in storage */
+  virtual void update(BlockID block_id, std::shared_ptr<Block> block) override;
   /** Gets the given block for the given block id */
   virtual std::shared_ptr<Block> get(BlockID id) const override;
 };

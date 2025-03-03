@@ -16,9 +16,13 @@ BlockID MemStore::insert(std::shared_ptr<Block> block) {
   return id;
 }
 
+void MemStore::update(BlockID block_id, std::shared_ptr<Block> block) {
+  blocks[block_id] = block;
+}
+
 std::shared_ptr<Block> MemStore::get(BlockID id) const {
   // check if block id is valid
-  if(id >= blocks.size()) {
+  if (id >= blocks.size()) {
     std::stringstream ss;
     ss << "MemStore::get: invalid block id" << id;
     throw std::runtime_error(ss.str());

@@ -4,7 +4,6 @@
  * Memory Store Tests
  */
 
-#include "block.h"
 #include "btree.h"
 #include "data.h"
 #include "mem_store.h"
@@ -12,8 +11,8 @@
 #include <memory>
 
 TEST(mem_store_test, test_insert_get) {
-  std::shared_ptr<Block> block1 = std::make_shared<Data>();
-  std::shared_ptr<Block> block2 = std::make_shared<BTreeNode>();
+  std::shared_ptr<Data> block1 = std::make_shared<Data>();
+  std::shared_ptr<BTreeNode> block2 = std::make_shared<BTreeNode>();
 
   MemStore ms;
   Store &store = ms;
@@ -26,4 +25,9 @@ TEST(mem_store_test, test_insert_get) {
   EXPECT_EQ(store.get(id1), block1);
   EXPECT_EQ(store.get(id2), block2);
   EXPECT_THROW(store.get(999), std::runtime_error);
+
+  // test update
+  std::shared_ptr<BTreeNode> block3 = std::make_shared<BTreeNode>(2, BTreeNodeKindLeaf);
+  store.update(id2, block3);
+  EXPECT_EQ(store.get(id2), block3);
 }
