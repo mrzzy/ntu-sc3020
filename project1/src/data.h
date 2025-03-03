@@ -13,7 +13,7 @@
 #include <vector>
 
 /** Data Block to store games.txt data */
-class Data : Block {
+class Data : public Block {
 public:
   // no. of records the data block can store
   uint8_t capacity;

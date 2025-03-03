@@ -75,3 +75,7 @@ CMakeUserPresets.json
 
 # build directory
 build/
+
+
+### VIM ###
+Session.vim

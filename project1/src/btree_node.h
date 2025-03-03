@@ -19,7 +19,7 @@ enum BTreeNodeKind {
 };
 
 /** B+Tree Index node block */
-class BTreeNode : Block {
+class BTreeNode : public Block {
 public:
   /** No. of keys that can be maintained by the B+Tree node */
   uint16_t capacity;
