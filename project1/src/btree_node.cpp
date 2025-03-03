@@ -11,9 +11,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <ostream>
+#include <stdexcept>
 
-BTreeNode::BTreeNode() : kind(BTreeNodeKindInternal) {
+BTreeNode::BTreeNode(BTreeNodeKind kind) : kind(kind) {
   // determine btree node key capacity based on fs block size
   // header 1 uint16_t:
   // * msb (15) bit: node kind
@@ -23,11 +25,6 @@ BTreeNode::BTreeNode() : kind(BTreeNodeKindInternal) {
   // ensure space for n keys and n+1 pointers + header
   capacity = (block_size() - header_size - pointer_size) /
              (sizeof(Key) + pointer_size);
-}
-
-BTreeNode::BTreeNode(BlockID pointer, BTreeNodeKind kind) : BTreeNode() {
-  pointers.push_back(pointer);
-  this->kind = kind;
 }
 
 /** mask used to obtain btree node kind bit from header */
@@ -58,21 +55,43 @@ void BTreeNode::write(std::ostream &out) const {
   write_vec(pointers, out);
 }
 
-void BTreeNode::insert(Key key, BlockID ge_pointer) {
+void BTreeNode::insert(Key key, BlockID pointer) {
   // reject inserts exceeding capacity
   if (is_full()) {
     throw std::runtime_error(
         "BTreeNode::insert(): insert exceeds block capacity");
   }
 
-  // locate insertion position: before next greater key
+  // locate insertion position in sorted order: before next greater key
   auto insert_it = std::upper_bound(keys.begin(), keys.end(), key);
   auto insert_at = std::distance(keys.begin(), insert_it);
 
-  // insert key
-  keys.insert(insert_it, key);
-  // insert ge_pointer at key + 1 position since there is n_keys + 1 pointers
-  pointers.insert(pointers.begin() + insert_at + 1, ge_pointer);
+  if (kind == BTreeNodeKindLeaf) {
+    if (pointers.size() <= 0) {
+      // add additional pointer on first insertion into leaf node
+      // this mantains the k+1 pointer to the k keys in the leaf node
+      pointers.push_back(std::numeric_limits<BlockID>::max());
+    }
+    // leaf node: k pointer associated with key in same position k
+    keys.insert(insert_it, key);
+    pointers.insert(pointers.begin() + insert_at, pointer);
+  } else if (kind == BTreeNodeKindInternal) {
+    // internal node: keys used as separators
+    // pointer in k+1 position associated with key in kth position
+    if (pointers.size() <= 0) {
+      // discard key on first insertion into internal node as this key
+      // would be promoted to the parent of this internal node.
+      // this mantains the k+1 pointer to the k keys in the internal node
+      pointers.push_back(pointer);
+    } else {
+      keys.insert(insert_it, key);
+      // insert ge_pointer at key + 1 position since there is n_keys + 1
+      // pointers
+      pointers.insert(pointers.begin() + insert_at + 1, pointer);
+    }
+  } else {
+    throw std::runtime_error("BTreeNode::insert: Unsupported node kind.");
+  }
 }
 
 bool BTreeNode::operator==(const BTreeNode &other) const {

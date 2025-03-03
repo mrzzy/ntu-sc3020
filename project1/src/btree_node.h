@@ -30,11 +30,10 @@ public:
   /** Type of node */
   BTreeNodeKind kind;
 
-  /** Construct empty BTree node. Only used for creating a empty node for
-   * reading. */
-  BTreeNode();
-  /** Construct Btree node with initial pointer & kind */
-  BTreeNode(BlockID pointer, BTreeNodeKind kind);
+  /** Construct empty BTree node */
+  BTreeNode(): BTreeNode(BTreeNodeKindInternal) {};
+  /** Construct empty BTree node with the given kind */
+  BTreeNode(BTreeNodeKind kind);
 
   /** Read the data block as bytes into the given stream */
   virtual void read(std::istream &in) override;

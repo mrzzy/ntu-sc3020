@@ -7,17 +7,11 @@
 #include "btree_node.h"
 #include <gtest/gtest.h>
 
-TEST(btree_node_test, test_read_write_insert) {
-  // add n_keys + 1 pointer
-  BTreeNode node(0, BTreeNodeKindLeaf);
+TEST(btree_node_test, test_read_write) {
+  BTreeNode node(BTreeNodeKindLeaf);
   for (uint16_t i = node.capacity; i > 0; i--) {
     node.insert(i, i);
   }
-
-  // check keys inserted in sorted order
-  ASSERT_LE(node.keys[1], node.keys[2]);
-  ASSERT_LE(node.keys[node.capacity - 2], node.keys[node.capacity - 1]);
-
   std::stringstream ss;
   node.write(ss);
   std::cout << "wrote block size:" << ss.tellp() << std::endl;
@@ -26,4 +20,35 @@ TEST(btree_node_test, test_read_write_insert) {
   read.read(ss);
   ASSERT_EQ(node.kind, BTreeNodeKindLeaf);
   ASSERT_EQ(node, read);
+}
+
+
+TEST(btree_node_test, insert_leaf) {
+  BTreeNode node(BTreeNodeKindLeaf);
+  for (uint16_t i = node.capacity; i > 0; i--) {
+    node.insert(i, i);
+  }
+
+  // check keys inserted in sorted order
+  for (uint16_t i = 0; i < node.size(); i ++) {
+    ASSERT_LE(node.keys[i], node.keys[i + 1]);
+  }
+}
+
+TEST(btree_node_test, insert_internal) {
+  BTreeNode node(BTreeNodeKindInternal);
+  
+  // check first insertion does not introduce key
+  node.insert(555, 555);
+  ASSERT_EQ(node.keys.size(), 0);
+  ASSERT_EQ(node.pointers.size(), 1);
+
+  for (uint16_t i = node.capacity - 1; i > 0; i--) {
+    node.insert(i, i);
+  }
+
+  // check keys inserted in sorted order
+  for (uint16_t i = 0; i < node.size(); i ++) {
+    ASSERT_LE(node.keys[i], node.keys[i + 1]);
+  }
 }
