@@ -8,7 +8,6 @@
 #include "fs.h"
 #include "id.h"
 #include <algorithm>
-#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -61,7 +60,7 @@ void BTreeNode::write(std::ostream &out) const {
 
 void BTreeNode::insert(Key key, BlockID ge_pointer) {
   // reject inserts exceeding capacity
-  if (size() >= capacity) {
+  if (is_full()) {
     throw std::runtime_error(
         "BTreeNode::insert(): insert exceeds block capacity");
   }

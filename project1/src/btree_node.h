@@ -45,11 +45,13 @@ public:
    * 'ge_pointer' points to block containing greater or equal keys.
    */
   void insert(Key key, BlockID ge_pointer);
+  /** No. of keys currently maintained by the B+Tree node */
+  uint16_t size() const { return keys.size(); }
+  /** Whether the Btree node is currently full */
+  bool is_full() const { return size() >= capacity; }
 
   // Equality operator
   bool operator==(const BTreeNode &other) const;
-  /** No. of keys currently maintained by the B+Tree node */
-  uint16_t size() const { return keys.size(); }
 };
 
 #endif /* ifndef BTREE_NODE_H */
