@@ -6,6 +6,7 @@
 
 #include "block.h"
 #include <memory>
+#include <unordered_map>
 #include <vector>
 #ifndef MEM_STORE_H
 #define MEM_STORE_H 1
@@ -17,12 +18,11 @@ class MemStore : public Store {
 public:
   // Blocks stored by memory store
   std::vector<std::shared_ptr<Block>> blocks;
+  std::unordered_map<BlockKind, std::vector<BlockID>> block_kind_ids;
 
-  /** Inserts the given block into storage with the given block id. */
   virtual BlockID insert(std::shared_ptr<Block> block) override;
-  /** Update the block with given block_id in storage */
   virtual void update(BlockID block_id, std::shared_ptr<Block> block) override;
-  /** Gets the given block for the given block id */
   virtual std::shared_ptr<Block> get_block(BlockID id) const override;
+  virtual std::vector<BlockID> kind_ids(BlockKind kind) const override;
 };
 #endif /* ifndef MEM_STORE_H */

@@ -12,11 +12,12 @@
 /** Block kind determines the variant of block. */
 enum BlockKind {
   BlockKindData = 0,
-  BlockKindIndex = 1,
+  BlockKindBTreeNode = 1,
 };
 
 /** Abstract Block that can be written to and read from bytes */
 class Block {
+public:
   /** Read the block as bytes into the given stream */
   virtual void read(std::istream &in) = 0;
   /** Write the block as bytes into the given stream */

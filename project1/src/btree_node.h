@@ -53,7 +53,7 @@ public:
 
   virtual void read(std::istream &in) override;
   virtual void write(std::ostream &out) const override;
-  virtual BlockKind block_kind() const override { return BlockKindIndex; }
+  virtual BlockKind block_kind() const override { return BlockKindBTreeNode; }
   bool operator==(const BTreeNode &other) const;
 };
 
