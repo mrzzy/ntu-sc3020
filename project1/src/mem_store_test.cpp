@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-TEST(mem_store_test, test_insert_get_kind_ids) {
+TEST(mem_store_test, test_insert_get) {
   std::shared_ptr<Data> block1 = std::make_shared<Data>();
   std::shared_ptr<BTreeNode> block2 = std::make_shared<BTreeNode>();
 
@@ -35,6 +35,6 @@ TEST(mem_store_test, test_insert_get_kind_ids) {
   EXPECT_EQ(store.get<BTreeNode>(id2), block3);
 
   // check kind ids
-  EXPECT_EQ(store.kind_ids(BlockKindData)[0], 0);
-  EXPECT_EQ(store.kind_ids(BlockKindBTreeNode)[0], 1);
+  EXPECT_EQ(store.get_meta()->get_ids(BlockKindData)[0], 0);
+  EXPECT_EQ(store.get_meta()->get_ids(BlockKindBTreeNode)[0], 1);
 }

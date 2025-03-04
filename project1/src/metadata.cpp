@@ -43,6 +43,16 @@ void Metadata::write(std::ostream &out) const {
   write_vec(btree_ids, out);
 }
 
+std::vector<BlockID> &Metadata::get_ids(BlockKind kind) {
+  if (kind == BlockKindData) {
+    return data_ids;
+  } else if (kind == BlockKindBTreeNode) {
+    return btree_ids;
+  } else {
+    throw std::runtime_error("Metadata::get_ids: Unsupported block type.");
+  }
+}
+
 bool Metadata::operator==(const Metadata &other) const {
   return (btree_root_id == other.btree_root_id) &&
          (data_ids == other.data_ids) && (btree_ids == other.btree_ids);

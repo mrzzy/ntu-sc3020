@@ -12,12 +12,16 @@
 #include <stdexcept>
 
 BlockID MemStore::insert(std::shared_ptr<Block> block) {
-  // store block
-  BlockID id = blocks.size();
-  blocks.push_back(block);
+  // record block id by block kind in metadata
+  std::shared_ptr meta = get_meta();
+  BlockID id = meta->new_id();
+  meta->get_ids(block->block_kind()).push_back(id);
+  set_meta(meta);
 
-  // record block id by block kind
-  block_kind_ids[block->block_kind()].push_back(id);
+  // store block
+  blocks.push_back(block);
+  BlockKind kind = block->block_kind();
+
   return id;
 }
 
@@ -33,8 +37,4 @@ std::shared_ptr<Block> MemStore::get_block(BlockID id) const {
     throw std::runtime_error(ss.str());
   }
   return blocks[id];
-}
-
-std::vector<BlockID> MemStore::kind_ids(BlockKind kind) const {
-  return block_kind_ids.at(kind);
 }

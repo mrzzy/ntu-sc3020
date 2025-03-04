@@ -32,8 +32,6 @@ public:
   template <typename T> std::shared_ptr<T> get(BlockID id) const {
     return std::dynamic_pointer_cast<T>(get_block(id));
   }
-  /** Get the block_ids that stored for the given block kind */
-  virtual std::vector<BlockID> kind_ids(BlockKind kind) const = 0;
   /** Gets the Metadata block of this store */
   virtual std::shared_ptr<Metadata> get_meta() const = 0;
   /** Updates the Metadata block of this store */

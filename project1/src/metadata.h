@@ -25,6 +25,7 @@ public:
   virtual void read(std::istream &in) override;
   virtual void write(std::ostream &out) const override;
   virtual BlockKind block_kind() const override { return BlockKindMetadata; }
+  std::vector<BlockID> &get_ids(BlockKind kind);
   bool operator==(const Metadata &other) const;
 };
 
