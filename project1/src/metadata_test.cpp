@@ -7,6 +7,8 @@
 #include "block.h"
 #include "metadata.h"
 #include <gtest/gtest.h>
+#include <utility>
+
 TEST(metadata_test, test_write_read) {
   Metadata metadata;
   metadata.btree_root_id = 2;
@@ -23,4 +25,25 @@ TEST(metadata_test, test_write_read) {
   Metadata read;
   read.read(ss);
   ASSERT_EQ(metadata, read);
+}
+
+TEST(metadata_test, test_lookup) {
+  Metadata metadata;
+  metadata.get_ids(BlockKindData).push_back(0);
+  metadata.get_ids(BlockKindBTreeNode).push_back(1);
+  metadata.get_ids(BlockKindData).push_back(2);
+  metadata.get_ids(BlockKindBTreeNode).push_back(3);
+  ASSERT_EQ(metadata.lookup(0), std::make_pair(BlockKindData, 0UL));
+  ASSERT_EQ(metadata.lookup(2), std::make_pair(BlockKindData, 1UL));
+  ASSERT_EQ(metadata.lookup(1), std::make_pair(BlockKindBTreeNode, 0UL));
+  ASSERT_EQ(metadata.lookup(3), std::make_pair(BlockKindBTreeNode, 1UL));
+}
+
+TEST(metadata_test, test_new_id) {
+  Metadata metadata;
+  ASSERT_EQ(metadata.new_id(), 0);
+  metadata.get_ids(BlockKindData).push_back(0);
+  ASSERT_EQ(metadata.new_id(), 1);
+  metadata.get_ids(BlockKindBTreeNode).push_back(1);
+  ASSERT_EQ(metadata.new_id(), 2);
 }

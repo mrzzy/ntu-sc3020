@@ -5,8 +5,17 @@
  */
 
 #include "metadata.h"
+#include "block.h"
+#include "data.h"
 #include "fs.h"
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
+#include <ostream>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 void Metadata::read(std::istream &in) {
   // read header:
@@ -51,6 +60,51 @@ std::vector<BlockID> &Metadata::get_ids(BlockKind kind) {
   } else {
     throw std::runtime_error("Metadata::get_ids: Unsupported block type.");
   }
+}
+
+/**
+ * Perform binary search of the given block id on the given block ids.
+ * Returns the index of the block id if found, length of the vector otherwise.
+ **/
+size_t find_block_id(std::vector<BlockID> ids, BlockID id) {
+  auto it = std::lower_bound(ids.begin(), ids.end(), id);
+  if (it == ids.end() || *it != id) {
+    // not found
+    return ids.size();
+  }
+  return std::distance(ids.begin(), it);
+}
+
+std::pair<BlockKind, size_t> Metadata::lookup(BlockID id) const {
+  // lookup id in data block ids
+  size_t index = find_block_id(data_ids, id);
+  if (index < data_ids.size()) {
+    // found in data_ids
+    return std::make_pair(BlockKindData, index);
+  }
+  // lookup id in btree block ids
+  index = find_block_id(btree_ids, id);
+  if (index < btree_ids.size()) {
+    // found in btree_ids
+    return std::make_pair(BlockKindBTreeNode, index);
+  }
+
+  std::stringstream ss;
+  ss << "Metadata::lookup: unknown block id: " << id;
+  throw new std::runtime_error(ss.str());
+}
+
+BlockID Metadata::new_id() const {
+  // max of data_id, btree_ids, 0
+  BlockID id = 0;
+  if (!data_ids.empty()) {
+    id = std::max(id, static_cast<BlockID>(data_ids[data_ids.size() - 1] + 1));
+  }
+  if (!btree_ids.empty()) {
+    id =
+        std::max(id, static_cast<BlockID>(btree_ids[btree_ids.size() - 1] + 1));
+  }
+  return id;
 }
 
 bool Metadata::operator==(const Metadata &other) const {
