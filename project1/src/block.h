@@ -13,6 +13,7 @@
 enum BlockKind {
   BlockKindData = 0,
   BlockKindBTreeNode = 1,
+  BlockKindMetadata = 2,
 };
 
 /** Abstract Block that can be written to and read from bytes */

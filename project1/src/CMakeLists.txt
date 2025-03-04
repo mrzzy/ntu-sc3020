@@ -25,6 +25,8 @@ add_library(sc3020_p1_lib OBJECT
   store.h
   mem_store.h
   mem_store.cpp
+  metadata.h
+  metadata.cpp
 )
 
 # build main executable
@@ -51,6 +53,7 @@ add_executable(
   btree_node_test.cpp
   btree_test.cpp
   mem_store_test.cpp
+  metadata_test.cpp
 )
 target_link_libraries(
   sc3020_p1_test

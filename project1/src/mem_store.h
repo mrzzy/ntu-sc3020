@@ -5,6 +5,7 @@
  */
 
 #include "block.h"
+#include "metadata.h"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -19,10 +20,12 @@ public:
   // Blocks stored by memory store
   std::vector<std::shared_ptr<Block>> blocks;
   std::unordered_map<BlockKind, std::vector<BlockID>> block_kind_ids;
+  Metadata meta;
 
   virtual BlockID insert(std::shared_ptr<Block> block) override;
   virtual void update(BlockID block_id, std::shared_ptr<Block> block) override;
   virtual std::shared_ptr<Block> get_block(BlockID id) const override;
   virtual std::vector<BlockID> kind_ids(BlockKind kind) const override;
+  virtual Metadata &get_metadata() override { return meta; }
 };
 #endif /* ifndef MEM_STORE_H */

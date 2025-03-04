@@ -1,3 +1,4 @@
+#include "metadata.h"
 #ifndef STORE_H
 #define STORE_H 1
 /*
@@ -11,7 +12,10 @@
 #include <memory>
 #include <vector>
 
-/** Abstract Block Store responsible for storing / fetching Blocks */
+/**
+ * Abstract Block Store responsible for storing / fetching Blocks
+ * All stores must create and maintain their own Metadata block.
+ */
 class Store {
 public:
   /** Inserts the given block into storage */
@@ -29,5 +33,7 @@ public:
   }
   /** Get the block_ids that stored for the given block kind */
   virtual std::vector<BlockID> kind_ids(BlockKind kind) const = 0;
+  /** Gets the metadata block of this store */
+  virtual Metadata &get_metadata() = 0;
 };
 #endif /* ifndef STORE_H */
