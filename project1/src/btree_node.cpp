@@ -14,7 +14,7 @@
 #include <ostream>
 #include <stdexcept>
 
-BTreeNode::BTreeNode(BTreeNodeKind kind) : kind(kind) {
+uint16_t BTreeNode::fs_capacity() {
   // determine btree node key capacity based on fs block size
   // header 1 uint16_t:
   // * msb (15) bit: node kind
@@ -22,9 +22,11 @@ BTreeNode::BTreeNode(BTreeNodeKind kind) : kind(kind) {
   size_t header_size = sizeof(uint16_t);
   size_t pointer_size = sizeof(BlockID);
   // ensure space for n keys and n+1 pointers + header
-  capacity = (block_size() - header_size - pointer_size) /
+  return (block_size() - header_size - pointer_size) /
              (sizeof(Key) + pointer_size);
 }
+
+BTreeNode::BTreeNode(BTreeNodeKind kind) : kind(kind), capacity(BTreeNode::fs_capacity()) {}
 
 /** mask used to obtain btree node kind bit from header */
 constexpr uint16_t HEADER_KIND_BIT = 15;

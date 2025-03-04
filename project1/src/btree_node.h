@@ -30,6 +30,10 @@ public:
   /** Type of node */
   BTreeNodeKind kind;
 
+  
+  /** Compute B+Tree node key capacity based on filesystem file size */
+  static uint16_t fs_capacity();
+
   /** Construct empty BTree node */
   BTreeNode(): BTreeNode(BTreeNodeKindInternal) {};
   /** Construct empty BTree node with the given kind */

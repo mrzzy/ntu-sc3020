@@ -7,7 +7,7 @@
 #include "btree_node.h"
 #include <gtest/gtest.h>
 
-TEST(btree_node_test, test_read_write) {
+TEST(btree_node_test, test_read_write_leaf) {
   BTreeNode node(BTreeNodeKindLeaf);
   for (uint16_t i = node.capacity; i > 0; i--) {
     node.insert(i, i);
@@ -19,6 +19,21 @@ TEST(btree_node_test, test_read_write) {
   BTreeNode read;
   read.read(ss);
   ASSERT_EQ(node.kind, BTreeNodeKindLeaf);
+  ASSERT_EQ(node, read);
+}
+
+TEST(btree_node_test, test_read_write_internal) {
+  BTreeNode node(BTreeNodeKindInternal);
+  for (uint16_t i = node.capacity; i > 0; i--) {
+    node.insert(i, i);
+  }
+  std::stringstream ss;
+  node.write(ss);
+  std::cout << "wrote block size:" << ss.tellp() << std::endl;
+
+  BTreeNode read;
+  read.read(ss);
+  ASSERT_EQ(node.kind, BTreeNodeKindInternal);
   ASSERT_EQ(node, read);
 }
 
