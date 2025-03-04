@@ -37,7 +37,10 @@ public:
   /** Construct empty BTree node */
   BTreeNode(): BTreeNode(BTreeNodeKindInternal) {};
   /** Construct empty BTree node with the given kind */
-  BTreeNode(BTreeNodeKind kind);
+  BTreeNode(BTreeNodeKind kind): BTreeNode(kind, BTreeNode::fs_capacity()) {};
+  /** Construct empty BTree node with the given kind */
+  BTreeNode(BTreeNodeKind kind, uint16_t capacity): kind(kind), capacity(capacity) {};
+
 
   /** Read the data block as bytes into the given stream */
   virtual void read(std::istream &in) override;

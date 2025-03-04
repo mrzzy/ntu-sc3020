@@ -26,8 +26,6 @@ uint16_t BTreeNode::fs_capacity() {
              (sizeof(Key) + pointer_size);
 }
 
-BTreeNode::BTreeNode(BTreeNodeKind kind) : kind(kind), capacity(BTreeNode::fs_capacity()) {}
-
 /** mask used to obtain btree node kind bit from header */
 constexpr uint16_t HEADER_KIND_BIT = 15;
 
