@@ -41,10 +41,6 @@ public:
   BTreeNode(BTreeNodeKind kind, uint16_t capacity)
       : kind(kind), capacity(capacity){};
 
-  /** Read the data block as bytes into the given stream */
-  virtual void read(std::istream &in) override;
-  /** Write the data block as bytes into the given stream */
-  virtual void write(std::ostream &out) const override;
   /**
    * Insert the given key & greater than or equal pointer 'ge_pointer'.
    * 'ge_pointer' points to block containing greater or equal keys.
@@ -55,7 +51,9 @@ public:
   /** Whether the Btree node is currently full */
   bool is_full() const { return size() >= capacity; }
 
-  // Equality operator
+  virtual void read(std::istream &in) override;
+  virtual void write(std::ostream &out) const override;
+  virtual BlockKind block_kind() const override { return BlockKindIndex; }
   bool operator==(const BTreeNode &other) const;
 };
 

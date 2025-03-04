@@ -45,14 +45,12 @@ public:
   Record get(RecordID id);
   /** Current number of inserted records */
   uint8_t count() const { return record_pos.size(); }
-  /** Read the data block as from the given stream */
-  virtual void read(std::istream &in) override;
-  /** Write the data block as bytes into the given stream */
-  virtual void write(std::ostream &out) const override;
-
   /** Minimum record key of any record stored the data block */
   Key key() const;
 
+  virtual void read(std::istream &in) override;
+  virtual void write(std::ostream &out) const override;
+  virtual BlockKind block_kind() const override { return BlockKindData; }
   bool operator==(const Data &other) const;
 };
 

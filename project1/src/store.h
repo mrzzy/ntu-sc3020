@@ -9,6 +9,7 @@
 #include "block.h"
 #include "id.h"
 #include <memory>
+
 /** Abstract Block Store responsible for storing / fetching Blocks */
 class Store {
 public:
