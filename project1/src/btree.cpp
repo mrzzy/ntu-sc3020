@@ -26,7 +26,7 @@ BTree::load_leaf(const std::map<Key, BlockID> &key_pointers) {
       // leaf node full / doesn't exist: create a new leaf node
       std::shared_ptr<BTreeNode> next =
           std::make_shared<BTreeNode>(BTreeNodeKindLeaf, capacity);
-      BlockID next_id = store.insert(leaf);
+      BlockID next_id = store.insert(next);
 
       // track keys & pointers to propagate to parent node(s)
       propagate[key] = next_id;
