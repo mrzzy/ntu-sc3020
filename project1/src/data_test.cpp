@@ -33,12 +33,10 @@ TEST(data_test, test_insert_get) {
   }
   ASSERT_THROW(block.insert(record1), std::runtime_error);
 
-
   ASSERT_EQ(block.get(id1), record1);
   ASSERT_EQ(block.get(id2), record2);
   ASSERT_THROW(block.get(999), std::runtime_error);
 }
-
 
 TEST(data_test, test_write_read) {
   Data block;

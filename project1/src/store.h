@@ -14,7 +14,8 @@
 
 /**
  * Abstract Block Store responsible for storing / fetching Blocks
- * All stores must create and maintain their own Metadata block.
+ * All stores must create and maintain the lifecycle of their own Metadata
+ * block.
  */
 class Store {
 public:
@@ -33,7 +34,9 @@ public:
   }
   /** Get the block_ids that stored for the given block kind */
   virtual std::vector<BlockID> kind_ids(BlockKind kind) const = 0;
-  /** Gets the metadata block of this store */
-  virtual Metadata &get_metadata() = 0;
+  /** Gets the Metadata block of this store */
+  virtual std::shared_ptr<Metadata> get_meta() const = 0;
+  /** Updates the Metadata block of this store */
+  virtual void set_meta(std::shared_ptr<Metadata> metadata) = 0;
 };
 #endif /* ifndef STORE_H */

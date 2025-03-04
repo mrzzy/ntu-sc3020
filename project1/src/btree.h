@@ -20,16 +20,11 @@ public:
   // Block store used to provide storage for btree nodes
   Store &store;
 
-  // block id of the root BTree index block or BlockID max value if no root
-  // block exists, ie. btree is empty.
-  BlockID root;
-
   /* Construct an empty btree backed by the given block store */
   BTree(Store &store) : BTree(store, BTreeNode::fs_capacity()) {}
   /* Construct an empty btree backed by the given block store using nodes of
    * given capacity. */
-  BTree(Store &store, uint16_t capacity)
-      : capacity(capacity), store(store), root(BLOCK_NULL){};
+  BTree(Store &store, uint16_t capacity) : capacity(capacity), store(store){};
 
   /**
    * Bulk load the given key-pointer pairs into leaf BTreeNodes.
@@ -59,6 +54,19 @@ public:
    * Returns BLOCK_NULL if no such block pointer is found.
    */
   BlockID get(Key key) const;
+
+  /*
+   * block id of the root BTree index block or BlockID max value if no root
+   * block exists, ie. btree is empty.
+   */
+  BlockID root() const { return store.get_meta()->btree_root_id; }
+
+  /** Set the block id of root B+Tree index block */
+  void set_root(BlockID id) {
+    std::shared_ptr<Metadata> meta = store.get_meta();
+    meta->btree_root_id = id;
+    store.set_meta(meta);
+  }
 };
 
 #endif /* ifndef BTREE_H */

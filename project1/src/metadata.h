@@ -12,7 +12,7 @@
 
 /** Metadata block to store storage metdata */
 class Metadata : public Block {
-  public:
+public:
   /** ID of the B+Tree index root or BLOCK_NULL if non exists */
   BlockID btree_root_id;
   /** Data block IDs in order of storage */

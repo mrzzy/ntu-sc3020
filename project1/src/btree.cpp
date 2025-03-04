@@ -94,7 +94,7 @@ int BTree::bulk_load(const std::map<Key, BlockID> &key_pointers) {
   n_levels++;
   if (propagate.size() == 1) {
     // leaf level is root node
-    root = propagate.begin()->second;
+    set_root(propagate.begin()->second);
     return n_levels;
   }
 
@@ -106,19 +106,19 @@ int BTree::bulk_load(const std::map<Key, BlockID> &key_pointers) {
   }
 
   // assign root node
-  root = propagate.begin()->second;
+  set_root(propagate.begin()->second);
 
   return n_levels;
 }
 
 BlockID BTree::get(Key key) const {
-  if (root == BLOCK_NULL) {
+  if (root() == BLOCK_NULL) {
     // empty btree: nothing to do
     return BLOCK_NULL;
   }
 
   // traverse >= 0 internal nodes to get to leaf nodes
-  std::shared_ptr node = store.get<BTreeNode>(root);
+  std::shared_ptr node = store.get<BTreeNode>(root());
   while (node->kind != BTreeNodeKindLeaf) {
     // find first key in node >= search key
     auto key_it = std::lower_bound(node->keys.begin(), node->keys.end(), key);
