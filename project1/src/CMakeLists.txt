@@ -30,6 +30,8 @@ add_library(sc3020_p1_lib OBJECT
   mem_store.cpp
   disk_store.h
   disk_store.cpp
+  spy_store.h
+  spy_store.cpp
 )
 
 # build main executable
@@ -58,6 +60,7 @@ add_executable(
   metadata_test.cpp
   mem_store_test.cpp
   disk_store_test.cpp
+  spy_store_test.cpp
 )
 target_link_libraries(
   sc3020_p1_test

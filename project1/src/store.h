@@ -1,4 +1,3 @@
-#include "metadata.h"
 #ifndef STORE_H
 #define STORE_H 1
 /*
@@ -9,6 +8,7 @@
 
 #include "block.h"
 #include "id.h"
+#include "metadata.h"
 #include <memory>
 
 /**

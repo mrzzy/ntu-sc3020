@@ -57,7 +57,7 @@ void DiskStore::update(BlockID block_id, std::shared_ptr<Block> block) {
 // Retrieve a block by its BlockID
 std::shared_ptr<Block> DiskStore::get_block(BlockID block_id) {
   // lookup type of block by id
-  BlockKind kind = get_meta()->lookup(block_id).first;
+  BlockKind kind = get_meta()->lookup(block_id);
 
   // read block from correct position for that block id
   file.seekg(position(block_id));
