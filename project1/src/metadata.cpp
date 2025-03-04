@@ -91,20 +91,11 @@ std::pair<BlockKind, size_t> Metadata::lookup(BlockID id) const {
 
   std::stringstream ss;
   ss << "Metadata::lookup: unknown block id: " << id;
-  throw new std::runtime_error(ss.str());
+  throw std::runtime_error(ss.str());
 }
 
 BlockID Metadata::new_id() const {
-  // max of data_id, btree_ids, 0
-  BlockID id = 0;
-  if (!data_ids.empty()) {
-    id = std::max(id, static_cast<BlockID>(data_ids[data_ids.size() - 1] + 1));
-  }
-  if (!btree_ids.empty()) {
-    id =
-        std::max(id, static_cast<BlockID>(btree_ids[btree_ids.size() - 1] + 1));
-  }
-  return id;
+  return data_ids.size() + btree_ids.size();
 }
 
 bool Metadata::operator==(const Metadata &other) const {

@@ -25,7 +25,7 @@ public:
 
   virtual BlockID insert(std::shared_ptr<Block> block) override;
   virtual void update(BlockID block_id, std::shared_ptr<Block> block) override;
-  virtual std::shared_ptr<Block> get_block(BlockID id) const override;
+  virtual std::shared_ptr<Block> get_block(BlockID id) override;
   virtual std::shared_ptr<Metadata> get_meta() const override { return meta; }
   virtual void set_meta(std::shared_ptr<Metadata> metadata) override {
     meta = metadata;

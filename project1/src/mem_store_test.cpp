@@ -15,16 +15,15 @@ TEST(mem_store_test, test_insert_get) {
   std::shared_ptr<Data> block1 = std::make_shared<Data>();
   std::shared_ptr<BTreeNode> block2 = std::make_shared<BTreeNode>();
 
-  MemStore ms;
-  Store &store = ms;
+  MemStore store;
   BlockID id1 = store.insert(block1);
   BlockID id2 = store.insert(block2);
 
   EXPECT_EQ(id1, 0);
   EXPECT_EQ(id2, 1);
 
-  EXPECT_EQ(store.get<Data>(id1), block1);
-  EXPECT_EQ(store.get<BTreeNode>(id2), block2);
+  EXPECT_EQ(*store.get<Data>(id1), *block1);
+  EXPECT_EQ(*store.get<BTreeNode>(id2), *block2);
   EXPECT_THROW(store.get<Block>(999), std::runtime_error);
 
   // test update
@@ -32,7 +31,7 @@ TEST(mem_store_test, test_insert_get) {
       std::make_shared<BTreeNode>(BTreeNodeKindLeaf);
   block3->insert(1, 2);
   store.update(id2, block3);
-  EXPECT_EQ(store.get<BTreeNode>(id2), block3);
+  EXPECT_EQ(*store.get<BTreeNode>(id2), *block3);
 
   // check kind ids
   EXPECT_EQ(store.get_meta()->get_ids(BlockKindData)[0], 0);

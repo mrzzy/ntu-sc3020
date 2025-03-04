@@ -23,6 +23,7 @@ add_library(sc3020_p1_lib OBJECT
   btree.h
   btree.cpp
   store.h
+  store.cpp
   metadata.h
   metadata.cpp
   mem_store.h

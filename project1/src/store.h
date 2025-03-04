@@ -10,7 +10,6 @@
 #include "block.h"
 #include "id.h"
 #include <memory>
-#include <vector>
 
 /**
  * Abstract Block Store responsible for storing / fetching Blocks
@@ -27,14 +26,18 @@ public:
    */
   virtual void update(BlockID block_id, std::shared_ptr<Block> block) = 0;
   /** Gets the given block for the given block id */
-  virtual std::shared_ptr<Block> get_block(BlockID id) const = 0;
-  /** Get block with given block id with casting to derived block type */
-  template <typename T> std::shared_ptr<T> get(BlockID id) const {
-    return std::dynamic_pointer_cast<T>(get_block(id));
-  }
+  virtual std::shared_ptr<Block> get_block(BlockID id) = 0;
   /** Gets the Metadata block of this store */
   virtual std::shared_ptr<Metadata> get_meta() const = 0;
   /** Updates the Metadata block of this store */
   virtual void set_meta(std::shared_ptr<Metadata> metadata) = 0;
+
+  /** Get block with given block id with casting to derived block type */
+  template <typename T> std::shared_ptr<T> get(BlockID id) {
+    return std::dynamic_pointer_cast<T>(get_block(id));
+  }
+
+  /** Register BlockID for the given new block in metadata */
+  BlockID register_id(std::shared_ptr<Block> block);
 };
 #endif /* ifndef STORE_H */

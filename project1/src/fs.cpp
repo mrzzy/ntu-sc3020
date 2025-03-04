@@ -4,12 +4,12 @@
  * Filesystem
  */
 
-#include "fs.h"
+#include <cstddef>
 #include <stdexcept>
 #include <sys/statvfs.h>
 
 /** Get & returns filesystem block size of current working directory */
-uint32_t block_size() {
+size_t block_size() {
   struct statvfs stat;
   if (statvfs(".", &stat) == -1) {
     throw std::runtime_error("Failed to get FS block size.");
