@@ -31,7 +31,8 @@ public:
   virtual std::shared_ptr<Metadata> get_meta() const = 0;
   /** Updates the Metadata block of this store */
   virtual void set_meta(std::shared_ptr<Metadata> metadata) = 0;
-
+  /** Persist changes made to blocks in this store to storage */
+  virtual void persist() = 0;
   /** Get block with given block id with casting to derived block type */
   template <typename T> std::shared_ptr<T> get(BlockID id) {
     return std::dynamic_pointer_cast<T>(get_block(id));

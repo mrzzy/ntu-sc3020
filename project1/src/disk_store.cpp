@@ -77,15 +77,10 @@ void DiskStore::set_meta(std::shared_ptr<Metadata> metadata) {
   meta = metadata;
 }
 
-void DiskStore::flush() {
-  // flush metadata changes to disk
+void DiskStore::persist() {
+  // persist metadata changes to disk
   file.seekp(METADATA_POS);
   meta->write(file);
 
   file.flush();
-}
-
-void DiskStore::close() {
-  flush();
-  file.close();
 }

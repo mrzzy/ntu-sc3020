@@ -30,5 +30,6 @@ public:
   virtual void set_meta(std::shared_ptr<Metadata> metadata) override {
     meta = metadata;
   }
+  virtual void persist() override {}
 };
 #endif /* ifndef MEM_STORE_H */

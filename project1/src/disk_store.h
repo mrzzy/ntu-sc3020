@@ -29,10 +29,6 @@ public:
 
   /** Compute storage position of the given block id */
   size_t position(BlockID block_id) const;
-  /** Flush data stored to disk */
-  void flush();
-  /** Close the disk store */
-  void close();
 
   virtual BlockID insert(std::shared_ptr<Block> block) override;
   virtual void update(BlockID block_id, std::shared_ptr<Block> block) override;
@@ -41,7 +37,7 @@ public:
       return meta;
   }
   virtual void set_meta(std::shared_ptr<Metadata> metadata) override;
-
+  virtual void persist() override;
 };
 
 #define DISK_STORE_H 1

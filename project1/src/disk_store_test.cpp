@@ -32,7 +32,7 @@ TEST(disk_store_test, test_insert_get) {
   
   std::shared_ptr<Metadata> meta = disk.get_meta();
 
-  disk.close();
+  disk.persist();
   
   DiskStore disk2(path);
   

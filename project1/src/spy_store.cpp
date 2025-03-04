@@ -28,3 +28,7 @@ std::shared_ptr<Metadata> SpyStore::get_meta() const {
 void SpyStore::set_meta(std::shared_ptr<Metadata> metadata) {
   store->set_meta(metadata);
 }
+
+void SpyStore::persist() {
+  store->persist();
+}
