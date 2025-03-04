@@ -23,6 +23,6 @@ public:
   /** Update the block with given block_id in storage */
   virtual void update(BlockID block_id, std::shared_ptr<Block> block) override;
   /** Gets the given block for the given block id */
-  virtual std::shared_ptr<Block> get(BlockID id) const override;
+  virtual std::shared_ptr<Block> get_block(BlockID id) const override;
 };
 #endif /* ifndef MEM_STORE_H */

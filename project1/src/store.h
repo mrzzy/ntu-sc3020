@@ -18,6 +18,10 @@ public:
   /** Update the block with given block_id in storage */
   virtual void update(BlockID block_id, std::shared_ptr<Block> block) = 0;
   /** Gets the given block for the given block id */
-  virtual std::shared_ptr<Block> get(BlockID id) const = 0;
+  virtual std::shared_ptr<Block> get_block(BlockID id) const = 0;
+  /** Get block with given block id with casting to derived block type */
+  template <typename T> std::shared_ptr<T> get(BlockID id) const {
+    return std::dynamic_pointer_cast<T>(get_block(id));
+  }
 };
 #endif /* ifndef STORE_H */

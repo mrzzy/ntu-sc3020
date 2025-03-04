@@ -22,14 +22,14 @@ TEST(mem_store_test, test_insert_get) {
   EXPECT_EQ(id1, 0);
   EXPECT_EQ(id2, 1);
 
-  EXPECT_EQ(store.get(id1), block1);
-  EXPECT_EQ(store.get(id2), block2);
-  EXPECT_THROW(store.get(999), std::runtime_error);
+  EXPECT_EQ(store.get<Data>(id1), block1);
+  EXPECT_EQ(store.get<BTreeNode>(id2), block2);
+  EXPECT_THROW(store.get<Block>(999), std::runtime_error);
 
   // test update
   std::shared_ptr<BTreeNode> block3 =
       std::make_shared<BTreeNode>(BTreeNodeKindLeaf);
   block3->insert(1, 2);
   store.update(id2, block3);
-  EXPECT_EQ(store.get(id2), block3);
+  EXPECT_EQ(store.get<BTreeNode>(id2), block3);
 }

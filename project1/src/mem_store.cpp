@@ -20,7 +20,7 @@ void MemStore::update(BlockID block_id, std::shared_ptr<Block> block) {
   blocks[block_id] = block;
 }
 
-std::shared_ptr<Block> MemStore::get(BlockID id) const {
+std::shared_ptr<Block> MemStore::get_block(BlockID id) const {
   // check if block id is valid
   if (id >= blocks.size()) {
     std::stringstream ss;

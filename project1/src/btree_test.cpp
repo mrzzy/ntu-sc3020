@@ -36,8 +36,7 @@ TEST(btree_test, test_load_leaf) {
 
   // check last pointers of every block
   for (int i = 0; i < 3; i++) {
-    std::shared_ptr<BTreeNode> node =
-        std::dynamic_pointer_cast<BTreeNode>(store.get(i));
+    std::shared_ptr node = store.get<BTreeNode>(i);
     if (i < 2) {
       // last pointers should point to next block
       ASSERT_EQ(node->pointers[node->pointers.size() - 1], i + 1);
@@ -68,13 +67,11 @@ TEST(btree_test, test_load_internal) {
   ASSERT_EQ(propagate, expected);
 
   // check key split
-  std::shared_ptr<BTreeNode> node0 =
-      std::dynamic_pointer_cast<BTreeNode>(store.get(0));
+  std::shared_ptr node0 = store.get<BTreeNode>(0);
   // skip first key 0
   ASSERT_EQ(node0->keys[0], 1);
   ASSERT_EQ(node0->keys[node0->keys.size() - 1], split_at);
-  std::shared_ptr<BTreeNode> node1 =
-      std::dynamic_pointer_cast<BTreeNode>(store.get(1));
+  std::shared_ptr node1 = store.get<BTreeNode>(1);
   // skip mid key propagated to parent
   ASSERT_EQ(node1->keys[0], split_at + 2);
   ASSERT_EQ(node1->keys[node1->keys.size() - 1], capacity - 1);
@@ -85,8 +82,7 @@ TEST(btree_test, test_load_internal) {
       {0, 2},
   };
   ASSERT_EQ(propagate, expected);
-  std::shared_ptr<BTreeNode> node2 =
-      std::dynamic_pointer_cast<BTreeNode>(store.get(2));
+  std::shared_ptr<BTreeNode> node2 = store.get<BTreeNode>(2);
   // check mid key propagated to parent
   ASSERT_EQ(node2->keys[0], split_at + 1);
 }

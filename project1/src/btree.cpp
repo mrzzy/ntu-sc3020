@@ -118,8 +118,7 @@ BlockID BTree::get(Key key) const {
   }
 
   // traverse >= 0 internal nodes to get to leaf nodes
-  std::shared_ptr<BTreeNode> node =
-      std::dynamic_pointer_cast<BTreeNode>(store.get(root));
+  std::shared_ptr node = store.get<BTreeNode>(root);
   while (node->kind != BTreeNodeKindLeaf) {
     // find first key in node >= search key
     auto key_it = std::lower_bound(node->keys.begin(), node->keys.end(), key);
@@ -136,7 +135,7 @@ BlockID BTree::get(Key key) const {
       // follow block pointer to left of key
       next_id = node->pointers[index];
     }
-    node = std::dynamic_pointer_cast<BTreeNode>(store.get(next_id));
+    node = store.get<BTreeNode>(next_id);
   }
 
   // reached leaf node
