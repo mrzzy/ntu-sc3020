@@ -23,7 +23,7 @@ uint16_t BTreeNode::fs_capacity() {
   size_t pointer_size = sizeof(BlockID);
   // ensure space for n keys and n+1 pointers + header
   return (block_size() - header_size - pointer_size) /
-             (sizeof(Key) + pointer_size);
+         (sizeof(Key) + pointer_size);
 }
 
 /** mask used to obtain btree node kind bit from header */

@@ -30,17 +30,16 @@ public:
   /** Type of node */
   BTreeNodeKind kind;
 
-  
   /** Compute B+Tree node key capacity based on filesystem file size */
   static uint16_t fs_capacity();
 
   /** Construct empty BTree node */
-  BTreeNode(): BTreeNode(BTreeNodeKindInternal) {};
+  BTreeNode() : BTreeNode(BTreeNodeKindInternal){};
   /** Construct empty BTree node with the given kind */
-  BTreeNode(BTreeNodeKind kind): BTreeNode(kind, BTreeNode::fs_capacity()) {};
+  BTreeNode(BTreeNodeKind kind) : BTreeNode(kind, BTreeNode::fs_capacity()){};
   /** Construct empty BTree node with the given kind */
-  BTreeNode(BTreeNodeKind kind, uint16_t capacity): kind(kind), capacity(capacity) {};
-
+  BTreeNode(BTreeNodeKind kind, uint16_t capacity)
+      : kind(kind), capacity(capacity){};
 
   /** Read the data block as bytes into the given stream */
   virtual void read(std::istream &in) override;

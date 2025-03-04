@@ -94,37 +94,35 @@ TEST(btree_test, test_load_internal) {
 TEST(btree_test, test_bulk_load) {
   // // test empty load
   std::map<Key, BlockID> key_pointers;
-  uint16_t capacity = BTreeNode::fs_capacity();
-  // MemStore store;
-  // BTree btree(store);
-  // ASSERT_EQ(btree.bulk_load(key_pointers), 0);
-  // 
-  // // test 1 level tree:
-  // key_pointers.clear();
-  // key_pointers[1] = 1;
-  // MemStore store1;
-  // BTree btree1(store1);
-  // ASSERT_EQ(btree.bulk_load(key_pointers), 1);
-  //
-  // // test 2 level tree:
-  // // root - leaf
-  // key_pointers.clear();
-  // for (int i = 0; i < capacity + 1; i++) {
-  //   key_pointers[i] = i;
-  // }
-  // MemStore store2;
-  // BTree btree2(store2);
-  // ASSERT_EQ(btree2.bulk_load(key_pointers), 2);
-  //
+  uint16_t capacity = 3;
+  MemStore store;
+  BTree btree(store, capacity);
+  ASSERT_EQ(btree.bulk_load(key_pointers), 0);
+
+  // test 1 level tree:
+  key_pointers.clear();
+  key_pointers[1] = 1;
+  MemStore store1;
+  BTree btree1(store1, capacity);
+  ASSERT_EQ(btree.bulk_load(key_pointers), 1);
+
+  // test 2 level tree:
+  // root - leaf
+  key_pointers.clear();
+  for (int i = 0; i < capacity + 1; i++) {
+    key_pointers[i] = i;
+  }
+  MemStore store2;
+  BTree btree2(store2, capacity);
+  ASSERT_EQ(btree2.bulk_load(key_pointers), 2);
+
   // test 3 level tree:
   // root - internal - leaf
   key_pointers.clear();
-  for (int i = 0; i < capacity * capacity * 2; i++) {
+  for (int i = 0; i < 15; i++) {
     key_pointers[i] = i;
   }
   MemStore store3;
-  BTree btree3(store3);
+  BTree btree3(store3, capacity);
   ASSERT_EQ(btree3.bulk_load(key_pointers), 3);
-
-  // TODO(mrzzy):
 }
