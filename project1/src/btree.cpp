@@ -94,6 +94,7 @@ int BTree::bulk_load(const std::map<Key, BlockID> &key_pointers) {
   n_levels++;
   if (propagate.size() == 1) {
     // leaf level is root node
+    root = propagate.begin()->second;
     return n_levels;
   }
 
@@ -108,4 +109,44 @@ int BTree::bulk_load(const std::map<Key, BlockID> &key_pointers) {
   root = propagate.begin()->second;
 
   return n_levels;
+}
+
+BlockID BTree::get(Key key) const {
+  if (root == BLOCK_NULL) {
+    // empty btree: nothing to do
+    return BLOCK_NULL;
+  }
+
+  // traverse >= 0 internal nodes to get to leaf nodes
+  std::shared_ptr<BTreeNode> node =
+      std::dynamic_pointer_cast<BTreeNode>(store.get(root));
+  while (node->kind != BTreeNodeKindLeaf) {
+    // find first key in node >= search key
+    auto key_it = std::lower_bound(node->keys.begin(), node->keys.end(), key);
+    auto index = std::distance(node->keys.begin(), key_it);
+
+    BlockID next_id;
+    if (key_it == node->keys.end()) {
+      // follow last block pointer
+      next_id = node->pointers[node->pointers.size() - 1];
+    } else if (key >= *key_it) {
+      // follow block pointer to right of key
+      next_id = node->pointers[index + 1];
+    } else {
+      // follow block pointer to left of key
+      next_id = node->pointers[index];
+    }
+    node = std::dynamic_pointer_cast<BTreeNode>(store.get(next_id));
+  }
+
+  // reached leaf node
+  // find first key in node >= search key
+  auto key_it = std::lower_bound(node->keys.begin(), node->keys.end(), key);
+  auto index = std::distance(node->keys.begin(), key_it);
+  if (key == *key_it) {
+    // found key
+    return node->pointers[index];
+  }
+  // key not found
+  return BLOCK_NULL;
 }

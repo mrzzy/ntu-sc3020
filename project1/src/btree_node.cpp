@@ -80,7 +80,7 @@ void BTreeNode::insert(Key key, BlockID pointer) {
     if (pointers.size() <= 0) {
       // discard key on first insertion into internal node as this key
       // would be promoted to the parent of this internal node.
-      // this mantains the k+1 pointer to the k keys in the internal node
+      // this mantains the k+1 pointer to the k keys in internal nodes
       pointers.push_back(pointer);
     } else {
       keys.insert(insert_it, key);

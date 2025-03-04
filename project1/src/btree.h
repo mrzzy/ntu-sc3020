@@ -13,7 +13,6 @@
 #include <map>
 
 class BTree {
-  // TODO(mrzzy): add generic method for block id -> btree node lookup.
 public:
   // Key capacity of B+Tree nodes used to make up B+tree
   uint16_t capacity;
@@ -48,11 +47,18 @@ public:
    */
   std::map<Key, BlockID>
   load_internal(const std::map<Key, BlockID> &key_pointers);
+
   /**
    * Bulk load the given keys-block pointer mapping into a B+Tree.
    * Returns the number of levels in resulting B+tree
    */
   int bulk_load(const std::map<Key, BlockID> &key_pointers);
+
+  /**
+   * Lookup block pointer with the given key in the B+Tree.
+   * Returns BLOCK_NULL if no such block pointer is found.
+   */
+  BlockID get(Key key) const;
 };
 
 #endif /* ifndef BTREE_H */
