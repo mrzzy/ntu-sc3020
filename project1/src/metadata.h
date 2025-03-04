@@ -25,8 +25,8 @@ public:
   Metadata() : btree_root_id(BLOCK_NULL){};
   /** Get block ids for the given block type */
   std::vector<BlockID> &get_ids(BlockKind kind);
-  /** Lookup the kind and storage position of the block with the given id */
-  std::pair<BlockKind, size_t> lookup(BlockID id) const;
+  /** Lookup the block kind of the block with the given id */
+  BlockKind lookup(BlockID id) const;
   /** Get a fresh unallocated block id */
   BlockID new_id() const;
 

@@ -62,33 +62,17 @@ std::vector<BlockID> &Metadata::get_ids(BlockKind kind) {
   }
 }
 
-/**
- * Perform binary search of the given block id on the given block ids.
- * Returns the index of the block id if found, length of the vector otherwise.
- **/
-size_t find_block_id(std::vector<BlockID> ids, BlockID id) {
-  auto it = std::lower_bound(ids.begin(), ids.end(), id);
-  if (it == ids.end() || *it != id) {
-    // not found
-    return ids.size();
-  }
-  return std::distance(ids.begin(), it);
-}
-
-std::pair<BlockKind, size_t> Metadata::lookup(BlockID id) const {
+BlockKind Metadata::lookup(BlockID id) const {
   // lookup id in data block ids
-  size_t index = find_block_id(data_ids, id);
-  if (index < data_ids.size()) {
+  if (std::binary_search(data_ids.begin(), data_ids.end(), id)) {
     // found in data_ids
-    return std::make_pair(BlockKindData, index);
+    return BlockKindData;
   }
   // lookup id in btree block ids
-  index = find_block_id(btree_ids, id);
-  if (index < btree_ids.size()) {
+  if (std::binary_search(btree_ids.begin(), btree_ids.end(), id)) {
     // found in btree_ids
-    return std::make_pair(BlockKindBTreeNode, index);
+    return BlockKindBTreeNode;
   }
-
   std::stringstream ss;
   ss << "Metadata::lookup: unknown block id: " << id;
   throw std::runtime_error(ss.str());

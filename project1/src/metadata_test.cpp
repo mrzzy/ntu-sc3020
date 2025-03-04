@@ -33,10 +33,10 @@ TEST(metadata_test, test_lookup) {
   metadata.get_ids(BlockKindBTreeNode).push_back(1);
   metadata.get_ids(BlockKindData).push_back(2);
   metadata.get_ids(BlockKindBTreeNode).push_back(3);
-  ASSERT_EQ(metadata.lookup(0), std::make_pair(BlockKindData, 0UL));
-  ASSERT_EQ(metadata.lookup(2), std::make_pair(BlockKindData, 1UL));
-  ASSERT_EQ(metadata.lookup(1), std::make_pair(BlockKindBTreeNode, 0UL));
-  ASSERT_EQ(metadata.lookup(3), std::make_pair(BlockKindBTreeNode, 1UL));
+  ASSERT_EQ(metadata.lookup(0), BlockKindData);
+  ASSERT_EQ(metadata.lookup(2), BlockKindData);
+  ASSERT_EQ(metadata.lookup(1), BlockKindBTreeNode);
+  ASSERT_EQ(metadata.lookup(3), BlockKindBTreeNode);
 }
 
 TEST(metadata_test, test_new_id) {
