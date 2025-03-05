@@ -8,16 +8,46 @@
 - `make` should be available in your build environment.
 
 ### Building
-To configure and build the project, run the following commands:
+To configure and build the project, run:
 
 ```sh
-cmake -Bbuild -Ssrc
-make -C build
+cmake -Bbuild -Ssrc -DCMAKE_BUILD_TYPE=Release && make -C build -j
+```
+
+### Testing
+To run tests, execute:
+
+```sh
+cmake -Bbuild -Ssrc -DCMAKE_BUILD_TYPE=Debug && make -C build -j
+./build/sc3020_p1_test
 ```
 
 ## Running
-Once the build is complete, execute the program using:
+To execute the program:
 
 ```sh
-./build/sc3020_p1
+./build/sc3020_p1 load /tmp/db games.txt
+```
+- Loads `games.txt` into the database file at `/tmp/db`.
+
+### Querying
+Run one of the following to perform a query:
+
+```sh
+./build/sc3020_p1 query /tmp/db scan
+```
+- Runs a **brute-force scan** query on the database.
+
+```sh
+./build/sc3020_p1 query /tmp/db index
+```
+- Runs an **index-based** query on the database.
+
+## Example
+
+```sh
+rm /tmp/db
+./build/sc3020_p1 load /tmp/db games.txt
+./build/sc3020_p1 query /tmp/db scan
+./build/sc3020_p1 query /tmp/db index
 ```
