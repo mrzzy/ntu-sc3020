@@ -23,11 +23,11 @@
 
 uint8_t Data::fs_capacity() {
   // determine data block record capacity from fs block size
-  // header: 1 uint8_t storing number of records in block
-  size_t header_size = sizeof(uint8_t);
-  // need to store both record and record id mapping for each record
-  size_t record_size = Record::size() + sizeof(RecordID);
-  return (block_size() - header_size - sizeof(next_id)) / record_size;
+  // header: 
+  // - 1 uint8_t storing number of records in block
+  // - 1 block id (2 bytes) pointer to next block (if any)
+  size_t header_size = sizeof(uint8_t) + sizeof(next_id);
+  return (block_size() - header_size) / Record::size();
 }
 
 RecordID Data::insert(const Record &record) {
@@ -43,6 +43,7 @@ RecordID Data::insert(const Record &record) {
   auto insert_at = std::distance(KEY_COL.begin(), insert_it);
 
   // Insert record values into all column vectors
+  RecordID id = count() + 1;
   game_date_est.insert(game_date_est.begin() + insert_at, record.game_date_est);
   team_id_home.insert(team_id_home.begin() + insert_at, record.team_id_home);
   fg_pct_home.insert(fg_pct_home.begin() + insert_at, record.fg_pct_home);
@@ -54,29 +55,17 @@ RecordID Data::insert(const Record &record) {
   home_team_wins.insert(home_team_wins.begin() + insert_at,
                         record.home_team_wins);
 
-  // shift record_pos mapping for moved position of all records following newly
-  // inserted record
-  for (int i = 0; i < record_pos.size(); i++) {
-    if (record_pos[i] >= insert_at) {
-      record_pos[i]++;
-    }
-  }
-  // add record_pos mapping for newly inserted record
-  RecordID id = record_pos.size();
-  record_pos.push_back(insert_at);
-
   return id;
 }
 
 Record Data::get(RecordID id) {
   // lookup position of record in block
-  if (id < 0 || id >= record_pos.size()) {
+  if (id >= count()) {
     std::ostringstream ss;
     ss << "Data::get(): Invalid record id: " << id;
     throw std::runtime_error(ss.str());
   }
-  uint8_t i = record_pos[id];
-
+  uint8_t i = id;
   return {
       game_date_est[i], team_id_home[i], fg_pct_home[i],
       ft_pct_home[i],   fg3_pct_home[i], pts_home[i],
@@ -89,7 +78,6 @@ void Data::read(std::istream &in) {
   // read metadata
   in.read(reinterpret_cast<char *>(&size), sizeof(size));
   in.read(reinterpret_cast<char *>(&next_id), sizeof(BlockID));
-  read_vec(in, record_pos, size);
   // read record data
   read_vec(in, game_date_est, size);
   read_vec(in, team_id_home, size);
@@ -107,7 +95,6 @@ void Data::write(std::ostream &out) const {
   uint8_t size_ = count();
   out.write(reinterpret_cast<const char *>(&size_), sizeof(size_));
   out.write(reinterpret_cast<const char *>(&next_id), sizeof(BlockID));
-  write_vec(record_pos, out);
   // write record data in columar fashion
   write_vec(game_date_est, out);
   write_vec(team_id_home, out);
@@ -129,10 +116,10 @@ Key Data::key() const {
 // Overload equality operator
 bool Data::operator==(const Data &other) const {
   return this->count() == other.count();
-  record_pos == other.record_pos &&game_date_est ==
-      other.game_date_est &&team_id_home == other.team_id_home &&fg_pct_home ==
-      other.fg_pct_home &&ft_pct_home == other.ft_pct_home &&fg3_pct_home ==
-      other.fg3_pct_home &&pts_home == other.pts_home &&ast_home ==
-      other.ast_home &&reb_home == other.reb_home &&home_team_wins ==
-      other.home_team_wins &&next_id == other.next_id;
+  game_date_est == other.game_date_est &&team_id_home ==
+      other.team_id_home &&fg_pct_home == other.fg_pct_home &&ft_pct_home ==
+      other.ft_pct_home &&fg3_pct_home == other.fg3_pct_home &&pts_home ==
+      other.pts_home &&ast_home == other.ast_home &&reb_home ==
+      other.reb_home &&home_team_wins == other.home_team_wins &&next_id ==
+      other.next_id;
 }

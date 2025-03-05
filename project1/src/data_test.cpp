@@ -24,17 +24,15 @@ TEST(data_test, test_insert_get) {
       "0.313	22	37	1");
   RecordID id2 = block.insert(record2);
   ASSERT_NE(id1, id2);
+
   // check data stored in sorted order
-  ASSERT_LE(block.fg_pct_home[0], block.fg_pct_home[1]);
-  ASSERT_EQ(block.key(), record2.key());
+  ASSERT_EQ(block.get(0), record2);
+  ASSERT_EQ(block.get(1), record1);
 
   for (int i = block.capacity - 2; i > 0; i--) {
     block.insert(record1);
   }
   ASSERT_THROW(block.insert(record1), std::runtime_error);
-
-  ASSERT_EQ(block.get(id1), record1);
-  ASSERT_EQ(block.get(id2), record2);
   ASSERT_THROW(block.get(999), std::runtime_error);
 }
 

@@ -20,8 +20,6 @@ public:
   /* Compute capacity based on filesystem block size */
   static uint8_t fs_capacity();
 
-  // maps record id to position of record in block
-  std::vector<RecordID> record_pos;
   // fields stored in a columar format (structure of arrays) for better data
   // locality when scanning by single field.
   // fields stored clustered (ordered) by key
@@ -46,7 +44,7 @@ public:
   /** Get the record for given record ID */
   Record get(RecordID id);
   /** Current number of inserted records */
-  uint8_t count() const { return record_pos.size(); }
+  uint8_t count() const { return fg_pct_home.size(); }
   /** Minimum record key of any record stored the data block */
   Key key() const;
   /** Minimum record key of any record stored the data block */
