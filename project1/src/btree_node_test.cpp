@@ -44,8 +44,8 @@ TEST(btree_node_test, insert_leaf) {
   }
 
   // check keys inserted in sorted order
-  for (uint16_t i = 0; i < node.size(); i++) {
-    ASSERT_LE(node.keys[i], node.keys[i + 1]);
+  for (uint16_t i = 0; i < node.size() - 1; i++) {
+    EXPECT_LE(node.keys[i], node.keys[i + 1]);
   }
 }
 
