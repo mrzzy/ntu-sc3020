@@ -19,7 +19,7 @@ public:
   uint8_t capacity;
 
   // maps record id to position of record in block
-  std::vector<RecordID> record_pos;
+  std::vector<uint8_t> record_pos;
   // fields stored in a columar format (structure of arrays) for better data
   // locality when scanning by single field.
   // fields stored clustered (ordered) by key

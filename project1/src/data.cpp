@@ -75,7 +75,7 @@ Record Data::get(RecordID id) {
     ss << "Data::get(): Invalid record id: " << id;
     throw std::runtime_error(ss.str());
   }
-  int i = record_pos[id];
+  uint8_t i = record_pos[id];
 
   return {
       game_date_est[i], team_id_home[i], fg_pct_home[i],
