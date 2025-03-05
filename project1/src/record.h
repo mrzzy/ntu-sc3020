@@ -33,13 +33,7 @@ public:
   bool home_team_wins;
 
   /** Convert the given key value into a comparable key */
-  static Key to_key(float value) {
-    // convert floating point key value to int for reliable comparison
-    // here we make assumptions about the data:
-    // 1. data value is 0 <= x < 1 and has 3dps of precision
-    // 2. nan values are treated as maximum
-    return (value * 1000);
-  }
+  static Key to_key(float value);
 
   /** Get the key of the Record */
   Key key() const { return Record::to_key(fg_pct_home); }

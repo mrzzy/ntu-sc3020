@@ -7,8 +7,21 @@
 #include "record.h"
 #include <ctime>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <vector>
+
+Key Record::to_key(float value) {
+  // convert floating point key value to int for reliable comparison
+  // here we make assumptions about the data:
+  // 1. nan values are handled by returning max key value so they don't collide
+  // with any other key
+  if (std::isnan(value)) {
+    return std::numeric_limits<Key>::max();
+  }
+  // 2. data value is 0 <= x < 1 and has 3dps of precision
+  return (value * 1000);
+}
 
 /** Parse "DD/MM/YYYY" format into uint32_t epoch timestamp */
 time_t parse_date(const std::string &dateStr) {
@@ -53,27 +66,24 @@ Record Record::from_tsv(const std::string &tsvRow) {
 
   // Convert and assign values
   Record r;
-  // null handling: assign max value if empty
+  // null handling: assign max value for ints, nan value for floats if empty
   r.game_date_est = fields[0].empty() ? std::numeric_limits<time_t>::max()
                                       : parse_date(fields[0]);
   r.team_id_home = fields[1].empty() ? std::numeric_limits<uint32_t>::max()
                                      : std::stoul(fields[1]);
   r.pts_home = fields[2].empty() ? std::numeric_limits<uint8_t>::max()
                                  : std::stoi(fields[2]);
-  r.fg_pct_home = fields[3].empty() ? std::numeric_limits<float>::max()
+  r.fg_pct_home = fields[3].empty() ? std::numeric_limits<float>::quiet_NaN()
                                     : std::stof(fields[3]);
-  r.ft_pct_home = fields[4].empty() ? std::numeric_limits<float>::max()
+  r.ft_pct_home = fields[4].empty() ? std::numeric_limits<float>::quiet_NaN()
                                     : std::stof(fields[4]);
-  r.fg3_pct_home = fields[5].empty() ? std::numeric_limits<float>::max()
+  r.fg3_pct_home = fields[5].empty() ? std::numeric_limits<float>::quiet_NaN()
                                      : std::stof(fields[5]);
   r.ast_home = fields[6].empty() ? std::numeric_limits<uint8_t>::max()
                                  : std::stoi(fields[6]);
   r.reb_home = fields[7].empty() ? std::numeric_limits<uint8_t>::max()
                                  : std::stoi(fields[7]);
-  r.home_team_wins =
-      fields[8].empty()
-          ? true
-          : (fields[8] == "1");
+  r.home_team_wins = fields[8].empty() ? true : (fields[8] == "1");
 
   return r;
 }

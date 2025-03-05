@@ -34,9 +34,9 @@ TEST(record_test, test_from_to_tsv) {
   EXPECT_EQ(empty_record.game_date_est, parse_date("24/10/2003"));
   EXPECT_EQ(empty_record.team_id_home, 1610612737);
   EXPECT_EQ(empty_record.pts_home, std::numeric_limits<uint8_t>::max());
-  EXPECT_FLOAT_EQ(empty_record.fg_pct_home, std::numeric_limits<float>::max());
-  EXPECT_FLOAT_EQ(empty_record.ft_pct_home, std::numeric_limits<float>::max());
-  EXPECT_FLOAT_EQ(empty_record.fg3_pct_home, std::numeric_limits<float>::max());
+  EXPECT_TRUE(std::isnan(empty_record.fg_pct_home));
+  EXPECT_TRUE(std::isnan(empty_record.ft_pct_home));
+  EXPECT_TRUE(std::isnan(empty_record.fg3_pct_home));
   EXPECT_EQ(empty_record.ast_home, std::numeric_limits<uint8_t>::max());
   EXPECT_EQ(empty_record.reb_home, std::numeric_limits<uint8_t>::max());
   EXPECT_EQ(empty_record.home_team_wins, false);
