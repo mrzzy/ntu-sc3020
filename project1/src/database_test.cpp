@@ -24,7 +24,7 @@ TEST(database_test, test_load_query) {
   Database db(store);
 
   std::ifstream games_tsv(std::filesystem::current_path() / "games.txt");
-  db.load(games_tsv);
+  EXPECT_EQ(db.load(games_tsv), 26651);
 
   EXPECT_GT(store->counts[SpyOpWrite][BlockKindData], 0);
   EXPECT_GT(store->counts[SpyOpWrite][BlockKindBTreeNode], 0);

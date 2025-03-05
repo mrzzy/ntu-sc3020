@@ -31,8 +31,9 @@ public:
   /** Create Database that stores & reads its data in the given store */
   Database(std::shared_ptr<Store> store) : store(store), index(*store) {}
 
-  /** Load the given games.txt TSV into the database */
-  void load(std::istream &games_tsv);
+  /** Load the given games.txt TSV into the database.
+   * Returns the no. of records loaded */
+  size_t load(std::istream &games_tsv);
 
   /**
    * Query for records with keys between begin & end (inclusive) in the given
@@ -42,6 +43,6 @@ public:
 };
 
 /** Compute average of fg_pct_home from the given records */
-double mean_fg_pct_home(const std::vector<Record>& records);
+double mean_fg_pct_home(const std::vector<Record> &records);
 
 #endif /* ifndef DATABASE_H */

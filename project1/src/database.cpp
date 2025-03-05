@@ -15,15 +15,14 @@
 #include <unordered_set>
 #include <vector>
 
-/* Read records from games_tsv, grouped by key into data blocks */
-using Blocks = std::map<Key, std::vector<std::shared_ptr<Data>>>;
-Blocks read_records(std::istream &games_tsv) {
+size_t Database::load(std::istream &games_tsv) {
   // skip header line
   std::string line;
   std::getline(games_tsv, line);
   // read records from games_tsv & pack them into data blocks by key
   // this means each data block only records from 1 key
-  Blocks blocks;
+  std::map<Key, std::vector<std::shared_ptr<Data>>> blocks;
+  size_t n_records = 0;
   while (std::getline(games_tsv, line)) {
     Record record = Record::from_tsv(line);
     Key key = record.key();
@@ -33,13 +32,8 @@ Blocks read_records(std::istream &games_tsv) {
       blocks[key].push_back(std::make_shared<Data>());
     }
     blocks[key].back()->insert(record);
+    n_records++;
   }
-
-  return blocks;
-}
-
-void Database::load(std::istream &games_tsv) {
-  Blocks blocks = read_records(games_tsv);
 
   // write data blocks to store
   std::map<Key, BlockID> key_pointers;
@@ -59,6 +53,8 @@ void Database::load(std::istream &games_tsv) {
   // since each data block only contains 1 key the index built is dense
   index.bulk_load(key_pointers);
   store->persist();
+
+  return n_records;
 }
 
 std::vector<Record> Database::query(QueryMode mode, Key begin, Key end) const {
