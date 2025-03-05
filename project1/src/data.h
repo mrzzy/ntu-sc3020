@@ -47,6 +47,8 @@ public:
   uint8_t count() const { return record_pos.size(); }
   /** Minimum record key of any record stored the data block */
   Key key() const;
+  /** Whether the data block is full */
+  bool is_full() const { return count() >= capacity; }
 
   virtual void read(std::istream &in) override;
   virtual void write(std::ostream &out) const override;

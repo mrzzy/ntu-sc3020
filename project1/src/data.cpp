@@ -32,7 +32,7 @@ Data::Data() : next_id(BLOCK_NULL) {
 
 RecordID Data::insert(const Record &record) {
   // reject inserts exceeding capacity
-  if (count() >= capacity) {
+  if (is_full()) {
     throw std::runtime_error("Data::insert(): insert exceeds block capacity");
   }
 

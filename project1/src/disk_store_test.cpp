@@ -4,15 +4,15 @@
  * Disk Store Tests
  */
 
-
+#include "btree_node.h"
 #include "disk_store.h"
 #include <gtest/gtest.h>
 #include <memory>
-#include "btree_node.h"
 
-std::filesystem::path path = std::filesystem::temp_directory_path().append("sc3020_disk_store");
+std::filesystem::path path =
+    std::filesystem::temp_directory_path() / "sc3020_disk_store";
 
-TEST(disk_store_test, test_constructor) { 
+TEST(disk_store_test, test_constructor) {
   DiskStore store(path);
   store.file.close();
   std::filesystem::remove(path);
@@ -29,13 +29,13 @@ TEST(disk_store_test, test_insert_get) {
 
   EXPECT_EQ(id1, 0);
   EXPECT_EQ(id2, 1);
-  
+
   std::shared_ptr<Metadata> meta = disk.get_meta();
 
   disk.persist();
-  
+
   DiskStore disk2(path);
-  
+
   EXPECT_EQ(*disk2.get<Data>(id1), *block1);
   EXPECT_EQ(*disk2.get<BTreeNode>(id2), *block2);
   EXPECT_THROW(disk2.get<Data>(999), std::runtime_error);

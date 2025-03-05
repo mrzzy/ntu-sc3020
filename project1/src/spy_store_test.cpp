@@ -16,6 +16,7 @@ TEST(SpyStoreTest, InsertAndRetrieveBlock) {
 
   std::shared_ptr block = std::make_shared<BTreeNode>();
   BlockID id = store.insert(block);
+  store.persist();
   EXPECT_EQ(store.counts[SpyOpWrite][block->block_kind()], 1);
   store.update(id, block);
   EXPECT_EQ(store.counts[SpyOpWrite][block->block_kind()], 2);

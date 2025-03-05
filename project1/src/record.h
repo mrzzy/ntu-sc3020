@@ -15,7 +15,6 @@
 #include <string>
 #include <string_view>
 
-
 /** Record to store games.txt data. */
 class Record {
 public:
@@ -52,12 +51,14 @@ public:
 
   /** Render record as TSV row string */
   std::string to_tsv() const;
-  /** Define equality operator for comparison */
-  bool operator==(const Record &other) const;
   /** Size of the record in bytes without padding */
   static size_t size() {
     return offsetof(Record, home_team_wins) + sizeof(bool);
   }
+  /** Define equality operator for comparison */
+  bool operator==(const Record &other) const;
+  /** Define less than operator for comparison */
+  bool operator<(const Record &other) const { return key() < other.key(); }
 };
 time_t parse_date(const std::string &dateStr);
 std::string format_date(time_t date);

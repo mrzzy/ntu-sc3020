@@ -32,6 +32,8 @@ add_library(sc3020_p1_lib OBJECT
   disk_store.cpp
   spy_store.h
   spy_store.cpp
+  database.h
+  database.cpp
 )
 
 # build main executable
@@ -61,6 +63,7 @@ add_executable(
   mem_store_test.cpp
   disk_store_test.cpp
   spy_store_test.cpp
+  database_test.cpp
 )
 target_link_libraries(
   sc3020_p1_test
