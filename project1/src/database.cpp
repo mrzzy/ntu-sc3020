@@ -15,7 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
-std::pair<size_t,size_t> Database::load(std::istream &games_tsv) {
+std::pair<size_t, size_t> Database::load(std::istream &games_tsv) {
   // skip header line
   std::string line;
   std::getline(games_tsv, line);

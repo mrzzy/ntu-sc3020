@@ -3,6 +3,7 @@
  * Project 1
  * Entrypoint
  */
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -60,6 +61,39 @@ int main(int argc, char *argv[]) {
       std::cout << " " << key;
     }
     std::cout << std::endl;
+  } else if (command == "query") {
+    std::string mode(argv[3]);
+    QueryMode query_mode;
+    // parse query mode
+    if (mode == "index") {
+      query_mode = QueryModeIndex;
+    } else if (mode == "scan") {
+      query_mode = QueryModeScan;
+    } else {
+      std::cout << "Fatal: unsupported query mode: " << mode << std::endl;
+      return 1;
+    }
+
+    // perform query: measuring execution time
+    auto begin_at = std::chrono::high_resolution_clock::now();
+
+    std::vector<Record> records =
+        db.query(query_mode, Record::to_key(0.6), Record::to_key(0.9));
+    double average = mean_fg_pct_home(records);
+
+    auto end_at = std::chrono::high_resolution_clock::now();
+    int duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(end_at - begin_at)
+            .count();
+
+    // print result & statistics for tasks
+    std::cout << "[Task 3]" << std::endl;
+    std::cout << "Index block accesses: "
+              << store->counts[SpyOpRead][BlockKindBTreeNode] << std::endl;
+    std::cout << "Data block accesses: "
+              << store->counts[SpyOpRead][BlockKindData] << std::endl;
+    std::cout << "Query result: " << average << std::endl;
+    std::cout << "Query time (microseconds): " << duration << std::endl;
   } else {
     std::cout << "Fatal: unsupported command: " << command << std::endl;
     return 1;

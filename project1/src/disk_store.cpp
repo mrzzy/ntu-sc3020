@@ -20,7 +20,7 @@ DiskStore::DiskStore(const std::filesystem::path &path)
   // open or create a new file on disk
   if (std::filesystem::exists(path)) {
     // existing file: read existing data
-    file.open(path);
+    file.open(path, std::ios::in | std::ios::out);
 
     // read metadata block from disk
     file.clear();
