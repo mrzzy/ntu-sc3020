@@ -1,5 +1,3 @@
-#include "store.h"
-#include <cstdint>
 #ifndef BTREE_H
 #define BTREE_H 1
 /*
@@ -7,10 +5,12 @@
  * Project 1
  * BTree
  */
-
 #include "btree_node.h"
 #include "id.h"
+#include "store.h"
+#include <cstdint>
 #include <map>
+#include <vector>
 
 class BTree {
 public:
@@ -49,11 +49,20 @@ public:
    */
   int bulk_load(const std::map<Key, BlockID> &key_pointers);
 
+  /** Look the B+Tree node that MAY store the given key in the B+Tree */
+  std::shared_ptr<BTreeNode> lookup(Key key) const;
+
   /**
    * Lookup block pointer with the given key in the B+Tree.
    * Returns BLOCK_NULL if no such block pointer is found.
    */
   BlockID get(Key key) const;
+
+  /**
+   * Lookup block pointers starting given 'begin' key and ending in 'end' key
+   * (inclusive). Returns empty vector if no block pointers mathch
+   */
+  std::vector<BlockID> range(Key begin, Key end) const;
 
   /*
    * block id of the root BTree index block or BlockID max value if no root
@@ -67,6 +76,9 @@ public:
     meta->btree_root_id = id;
     store.set_meta(meta);
   }
+
+  /** Whether the B+Tree is currently empty */
+  bool is_empty() const { return store.get_meta()->btree_root_id == BLOCK_NULL; }
 };
 
 #endif /* ifndef BTREE_H */

@@ -5,9 +5,11 @@
  */
 
 #include "btree.h"
+#include "database.h"
 #include "id.h"
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -111,10 +113,10 @@ int BTree::bulk_load(const std::map<Key, BlockID> &key_pointers) {
   return n_levels;
 }
 
-BlockID BTree::get(Key key) const {
+std::shared_ptr<BTreeNode> BTree::lookup(Key key) const {
   if (root() == BLOCK_NULL) {
     // empty btree: nothing to do
-    return BLOCK_NULL;
+    return nullptr;
   }
 
   // traverse >= 0 internal nodes to get to leaf nodes
@@ -138,14 +140,66 @@ BlockID BTree::get(Key key) const {
     node = store.get<BTreeNode>(next_id);
   }
 
-  // reached leaf node
-  // find first key in node >= search key
+  // reached leaf node with key
+  return node;
+}
+
+BlockID BTree::get(Key key) const {
+  std::shared_ptr node = lookup(key);
+  if(!node) {
+    // btree node not found
+    return  BLOCK_NULL;
+  }
+  // find first key in node == search key
   auto key_it = std::lower_bound(node->keys.begin(), node->keys.end(), key);
-  auto index = std::distance(node->keys.begin(), key_it);
-  if (key == *key_it) {
+  if (key_it != node->keys.end() && key == *key_it) {
     // found key
+    auto index = std::distance(node->keys.begin(), key_it);
     return node->pointers[index];
   }
   // key not found
   return BLOCK_NULL;
+}
+
+std::vector<BlockID> BTree::range(Key begin, Key end) const {
+  if(is_empty()) {
+    // b tree is empty: nothing to do
+    return {};
+  }
+
+  // lookup begin key in btree
+  std::shared_ptr node = lookup(begin);
+  if (!node) {
+    // fallback to start of btree
+    node = lookup(std::numeric_limits<Key>::min());
+  }
+
+  // find first key in node >= begin key
+  auto key_it = std::lower_bound(node->keys.begin(), node->keys.end(), begin);
+
+  // collect block pointers until see a key greater than end key
+  std::vector<BlockID> pointers;
+  while (key_it != node->keys.end() && *key_it <= end) {
+    auto index = std::distance(node->keys.begin(), key_it);
+    pointers.push_back(node->pointers[index]);
+
+    // advance to next key
+    key_it++;
+    if (key_it == node->keys.end()) {
+      // advance to next btree node as current node is exhausted
+      if (node->pointers.size() <= 0) {
+        throw std::runtime_error(
+            "BTreeNode::range: invalid btree node with key(s) but no pointers");
+      }
+      BlockID next_id = node->pointers.back();
+      if (next_id == BLOCK_NULL) {
+        // exhausted all btree nodes we are done
+        return pointers;
+      }
+      node = store.get<BTreeNode>(next_id);
+      key_it = node->keys.begin();
+    }
+  }
+
+  return pointers;
 }
