@@ -1,3 +1,4 @@
+#include <vector>
 #ifndef DATABASE_H
 #define DATABASE_H 1
 /*
@@ -6,10 +7,10 @@
  * Database
  */
 
+#include "btree.h"
 #include "store.h"
 #include <istream>
 #include <memory>
-#include "btree.h"
 
 /** Query execution mode. */
 enum QueryMode {
@@ -34,10 +35,13 @@ public:
   void load(std::istream &games_tsv);
 
   /**
-   * Query for "FG_PCT_HOME" between 0.6 to 0.9 (inclusive) in the given query
-   * mode. Returns the average of "FG_PCT_HOME" values queried.
+   * Query for records with keys between begin & end (inclusive) in the given
+   * query mode. Returns list of matching records.
    */
-  double query(QueryMode mode) const;
+  std::vector<Record> query(QueryMode mode, Key begin, Key end) const;
 };
+
+/** Compute average of fg_pct_home from the given records */
+double mean_fg_pct_home(const std::vector<Record>& records);
 
 #endif /* ifndef DATABASE_H */

@@ -146,9 +146,9 @@ std::shared_ptr<BTreeNode> BTree::lookup(Key key) const {
 
 BlockID BTree::get(Key key) const {
   std::shared_ptr node = lookup(key);
-  if(!node) {
+  if (!node) {
     // btree node not found
-    return  BLOCK_NULL;
+    return BLOCK_NULL;
   }
   // find first key in node == search key
   auto key_it = std::lower_bound(node->keys.begin(), node->keys.end(), key);
@@ -162,7 +162,7 @@ BlockID BTree::get(Key key) const {
 }
 
 std::vector<BlockID> BTree::range(Key begin, Key end) const {
-  if(is_empty()) {
+  if (is_empty()) {
     // b tree is empty: nothing to do
     return {};
   }

@@ -5,13 +5,14 @@
  */
 
 #include "database.h"
+#include "btree.h"
 #include "data.h"
-#include "store.h"
-#include <algorithm>
+#include <deque>
 #include <iostream>
 #include <memory>
-#include <ostream>
 #include <string>
+#include <strings.h>
+#include <unordered_set>
 #include <vector>
 
 /* Read records from games_tsv, grouped by key into data blocks */
@@ -21,6 +22,7 @@ Blocks read_records(std::istream &games_tsv) {
   std::string line;
   std::getline(games_tsv, line);
   // read records from games_tsv & pack them into data blocks by key
+  // this means each data block only records from 1 key
   Blocks blocks;
   while (std::getline(games_tsv, line)) {
     Record record = Record::from_tsv(line);
@@ -49,11 +51,69 @@ void Database::load(std::istream &games_tsv) {
       blocks[i]->next_id = block_id;
       block_id = store->insert(blocks[i]);
     }
-    
+
     // collect first data block id for each for indexing
     key_pointers[key] = block_id;
   }
   // build B+tree index on collected key data block pointers
+  // since each data block only contains 1 key the index built is dense
   index.bulk_load(key_pointers);
   store->persist();
+}
+
+std::vector<Record> Database::query(QueryMode mode, Key begin, Key end) const {
+  // collect data block_ids to scan based on query mode
+  std::vector<BlockID> data_ids;
+  if (mode == QueryModeScan) {
+    // scan: all data blocks
+    data_ids = store->get_meta()->data_ids;
+  } else if (mode == QueryModeIndex) {
+    // index: range query of matching data blocks
+    data_ids = index.range(begin, end);
+  }
+
+  // scan data blocks for matching records
+  std::deque<BlockID> scan_ids(data_ids.begin(), data_ids.end());
+  std::unordered_set<BlockID> seen_ids;
+  std::vector<Record> records;
+  while (!scan_ids.empty()) {
+    BlockID data_id = scan_ids.front();
+    scan_ids.pop_front();
+
+    if (seen_ids.count(data_id) >= 1) {
+      // skip seen data bocks
+      continue;
+    }
+
+    // read data block & scan records
+    std::shared_ptr data = store->get<Data>(data_id);
+    if (data->key() < begin || data->key() > end) {
+      // data block does not match query criteria: skip
+      continue;
+    }
+
+    // since all records within the same data block share the same key
+    // extract all records from data block as matching records
+    for (uint8_t i = 0; i < data->count(); i++) {
+      records.push_back(data->get(i));
+    }
+
+    // queue next data block id in data block chain (if any) for processing
+    if (data->next_id != BLOCK_NULL) {
+      scan_ids.push_back(data->next_id);
+    }
+
+    // mark data block as seen
+    seen_ids.insert(data_id);
+  }
+
+  return records;
+}
+
+double mean_fg_pct_home(const std::vector<Record> &records) {
+  double sum = 0.0;
+  for (const Record &record : records) {
+    sum += record.fg_pct_home;
+  }
+  return sum / records.size();
 }
