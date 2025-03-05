@@ -20,10 +20,10 @@ COPY games.txt .
 COPY src /app/src
 
 # build
-RUN cmake -G Ninja -S src -B build && ninja -C build
+RUN cmake -DCMAKE_BUILD_TYPE=Release -G Ninja -S src -B build && ninja -C build
 
 FROM base AS prod
 WORKDIR /app
 COPY --from=build /app/games.txt .
 COPY --from=build /app/build/sc3020_p1 .
-CMD ["./sc3020_p1", "games.txt"]
+ENTRYPOINT ["/app/sc3020_p1"]
