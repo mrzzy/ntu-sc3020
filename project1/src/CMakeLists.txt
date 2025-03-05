@@ -6,8 +6,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # c++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 set(CMAKE_ENABLE_EXPORTS ON)
+# enable optmisations on release build
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 # build library to share objects between main executable & test executable
 add_library(sc3020_p1_lib OBJECT
