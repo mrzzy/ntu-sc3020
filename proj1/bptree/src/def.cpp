@@ -1,7 +1,7 @@
 //
 // Created on 2025/2/20.
 //
-#include "def.h"
+#include "../include/def.h"
 
 std::ostream &operator<<(std::ostream &os, const RecordKey &key) {
     os << "RecKey{id:" << key.id << ", fg3_pct_home:" << key.fg3_pct_home << "}";

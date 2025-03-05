@@ -32,12 +32,17 @@ TEST_F(LoadCheck, tst_load_data) {
         tree.insert(3, "three");
         tree.insert(4, "four");
         tree.insert(5, "Five");
+
+        tree.print();
     }
 
     {
         //测试重新load起来之后，能否正常进行search
         BPlusTree tree2(DEGREE, "./test.ctx", "./a.db", false);
-        EXPECT_EQ(*tree2.search(6), "Six");
+        NodeValue out;
+        int times;
+        ASSERT_TRUE(tree2.search(6, out, times));
+        EXPECT_EQ(out, "Six");
 
     }
 

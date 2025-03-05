@@ -15,16 +15,18 @@ public:
     // 分配新页面，返回页面 ID
     PageID allocatePage();
 
+    void readAllPage(std::vector<LeafNode> &nodes);
+
     void readCtx(DataBaseContext &ctx);
     void writeCtx(const DataBaseContext &ctx);
 
     int getTotalPages();
 
     // 读取指定页到节点对象
-    void readPage(PageID page_id, Node &node);
+    void readPage(PageID page_id, LeafNode &node);
 
     // 将节点写入指定页
-    void writePage(PageID page_id, const Node &node);
+    void writePage(PageID page_id, const LeafNode &node);
 
     // 释放页面
     void freePage(PageID page_id);

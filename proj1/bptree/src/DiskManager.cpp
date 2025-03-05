@@ -64,21 +64,21 @@ PageID DiskManager::allocatePage() {
     return new_page_id;
 }
 
-void DiskManager::readPage(PageID page_id, Node &node) {
+void DiskManager::readPage(PageID page_id, LeafNode &node) {
     file_stream_.seekg(page_id * PAGE_SIZE, std::ios::beg);  // 定位到对应页面
     char buffer[PAGE_SIZE];
     file_stream_.read(buffer, PAGE_SIZE);
 
     // 将磁盘数据反序列化到节点
-    std::memcpy(&node, buffer, sizeof(Node));
+    std::memcpy(&node, buffer, sizeof(LeafNode));
 }
 
-void DiskManager::writePage(PageID page_id, const Node &node) {
+void DiskManager::writePage(PageID page_id, const LeafNode &node) {
     file_stream_.seekp(page_id * PAGE_SIZE, std::ios::beg);  // 定位到对应页面
     char buffer[PAGE_SIZE];
 
     // 将节点数据序列化到磁盘
-    std::memcpy(buffer, &node, sizeof(Node));
+    std::memcpy(buffer, &node, sizeof(LeafNode));
     file_stream_.write(buffer, PAGE_SIZE);
 }
 
@@ -94,6 +94,26 @@ DiskManager::~DiskManager() {
     if (file_stream_) {
         file_stream_.close();
     }
+}
+void DiskManager::readAllPage(std::vector<LeafNode> &nodes) {
+    //计算文件大小，反算有多少page
+    int nums = getTotalPages();
+    file_stream_.seekg(0, std::ios::beg);  // 定位到对应页面
+    std::string result;
+    result.resize(nums * PAGE_SIZE);
+    struct Page {
+        char buffer[PAGE_SIZE];
+    };
+    file_stream_.read(result.data(), nums * PAGE_SIZE);
+    Page *arr = reinterpret_cast<Page*>(result.data());
+    for (int i = 0; i < nums; ++i) {
+        LeafNode *node = reinterpret_cast<LeafNode*>(arr+i);
+        nodes.emplace_back(*node);
+    }
+    //根据next从小到大排序，如果是-1，则放到最后
+    std::sort(nodes.begin(), nodes.end(), [](const LeafNode& a, const LeafNode& b) {
+        return a.keys[0] < b.keys[0];
+    });
 }
 
 void DiskManager::readCtx(DataBaseContext &ctx) {

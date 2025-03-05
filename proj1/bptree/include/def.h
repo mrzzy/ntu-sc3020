@@ -8,8 +8,8 @@
 #include "fstream"
 #include "string"
 #include "TeamsRecord.h"
-const int PAGE_SIZE = 1024; // 每一页大小设置为1024，用于存放每个node数据
-const int DEGREE = 3; //定义3阶B+树，最小键值数是2，最大是2*3-1=5
+const int PAGE_SIZE = 4096; // 每一页大小设置为1024，用于存放每个node数据
+const int DEGREE = 7; //定义7阶B+树，最小键值数是2，最大是2*3-1=5
 using PageID = int;
 
 #ifdef GOOGLE_TEST
@@ -49,16 +49,37 @@ std::ostream& operator<<(std::ostream& os, const RecordKey &key);
 std::ostream& operator<<(std::ostream& os, const TeamsRecord &record);
 #endif
 
+//struct Node {
+//    bool isLeaf; // 是否为叶子节点
+//    int nums;  //用于表示keys以及values的数目（B+树这个值永远相等）
+//    int child_nums; //用于表示子节点的个数
+//    PageID pageId; //自身的所在位置
+//    NodeKey keys[DEGREE * 2]; // 存储节点的键
+//    NodeValue values[DEGREE * 2]; // 存储叶子节点的值
+//    PageID children[DEGREE * 2 + 1]; // 存储子节点
+//    PageID next = -1; // 用于叶子节点之间的链表连接
+//
+//    Node(bool leaf) : isLeaf(leaf), next(-1), nums(0), child_nums(0), pageId(-1) {}
+//};
 struct Node {
     bool isLeaf; // 是否为叶子节点
     int nums;  //用于表示keys以及values的数目（B+树这个值永远相等）
-    int child_nums; //用于表示子节点的个数
-    PageID pageId; //自身的所在位置
     NodeKey keys[DEGREE * 2]; // 存储节点的键
-    NodeValue values[DEGREE * 2]; // 存储叶子节点的值
-    PageID children[DEGREE * 2 + 1]; // 存储子节点
-    PageID next = -1; // 用于叶子节点之间的链表连接
+    PageID pageId = -1; //自身所在位置，只有isLeaf=true的时候才有意义
+    Node(bool leaf) : isLeaf(leaf), nums(0) {}
+    virtual ~Node(){}
+};
 
-    Node(bool leaf) : isLeaf(leaf), next(-1), nums(0), child_nums(0), pageId(-1) {}
+struct InternalNode : public Node {
+    InternalNode() : Node(false) {}
+    int type;// 1 表示存储的children是内部节点 2表示存储的是叶子节点
+    std::vector<InternalNode*> internalChildren;// 存储子节点
+    std::vector<PageID > leafChildren;
+};
+
+struct LeafNode : public Node {
+    LeafNode() : Node(true) {}
+    NodeValue values[DEGREE * 2]; // 存储叶子节点的值
+    PageID next = -1;
 };
 #endif //BPTREE_DEF_H

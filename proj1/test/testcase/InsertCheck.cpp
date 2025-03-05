@@ -16,7 +16,6 @@ void InsertCheck::TearDown() {
 TEST_F(InsertCheck, tst_insert) {
     BPlusTree tree(DEGREE, "./test.ctx", "./a.db", true);
 
-    // 插入键值对
     tree.insert(6, "Six");
     tree.insert(7, "Seven");
     tree.insert(8, "Eight");
@@ -32,5 +31,8 @@ TEST_F(InsertCheck, tst_insert) {
     tree.insert(3, "three");
     tree.insert(4, "four");
     tree.insert(5, "Five");
-    EXPECT_EQ(*tree.search(6), "Six");
+    NodeValue out;
+    int times;
+    EXPECT_TRUE(tree.search(6, out, times));
+    EXPECT_EQ(out, "Six");
 }
