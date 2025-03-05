@@ -47,7 +47,7 @@ public:
    * Bulk load the given keys-block pointer mapping into a B+Tree.
    * Returns the number of levels in resulting B+tree
    */
-  int bulk_load(const std::map<Key, BlockID> &key_pointers);
+  size_t bulk_load(const std::map<Key, BlockID> &key_pointers);
 
   /** Look the B+Tree node that MAY store the given key in the B+Tree */
   std::shared_ptr<BTreeNode> lookup(Key key) const;
@@ -78,7 +78,9 @@ public:
   }
 
   /** Whether the B+Tree is currently empty */
-  bool is_empty() const { return store.get_meta()->btree_root_id == BLOCK_NULL; }
+  bool is_empty() const {
+    return store.get_meta()->btree_root_id == BLOCK_NULL;
+  }
 };
 
 #endif /* ifndef BTREE_H */

@@ -83,8 +83,8 @@ BTree::load_internal(const std::map<Key, BlockID> &key_pointers) {
   return propagate;
 }
 
-int BTree::bulk_load(const std::map<Key, BlockID> &key_pointers) {
-  int n_levels = 0;
+size_t BTree::bulk_load(const std::map<Key, BlockID> &key_pointers) {
+  size_t n_levels = 0;
 
   if (key_pointers.size() <= 0) {
     // nothing to do

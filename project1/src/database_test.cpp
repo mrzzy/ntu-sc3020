@@ -23,8 +23,14 @@ TEST(database_test, test_load_query) {
       std::make_shared<SpyStore>(std::make_shared<DiskStore>(db_path));
   Database db(store);
 
-  std::ifstream games_tsv(std::filesystem::current_path() / "games.txt");
-  EXPECT_EQ(db.load(games_tsv), 26651);
+  std::fstream games_tsv(std::filesystem::current_path() / "games.txt");
+  const auto &[n_records, n_levels] = db.load(games_tsv);
+  // count no. of lines and check it matches with no. of records
+  games_tsv.clear();
+  games_tsv.seekg(0);
+  int n_lines = std::count(std::istreambuf_iterator<char>(games_tsv),
+                           std::istreambuf_iterator<char>(), '\n');
+  EXPECT_EQ(n_records, n_lines - 1);
 
   EXPECT_GT(store->counts[SpyOpWrite][BlockKindData], 0);
   EXPECT_GT(store->counts[SpyOpWrite][BlockKindBTreeNode], 0);

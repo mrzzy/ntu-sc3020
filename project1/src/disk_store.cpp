@@ -12,7 +12,6 @@
 #include <fstream>
 #include <memory>
 #include <stdexcept>
-#include <utility>
 
 constexpr size_t METADATA_POS = 0;
 
@@ -24,6 +23,7 @@ DiskStore::DiskStore(const std::filesystem::path &path)
     file.open(path);
 
     // read metadata block from disk
+    file.clear();
     file.seekg(METADATA_POS);
     meta->read(file);
   } else {
@@ -43,6 +43,7 @@ BlockID DiskStore::insert(std::shared_ptr<Block> block) {
   // register block in metadata
   BlockID id = register_id(block);
   // write block to correct position for that block id
+  file.clear();
   file.seekp(position(id));
   block->write(file);
   return id;
@@ -50,6 +51,7 @@ BlockID DiskStore::insert(std::shared_ptr<Block> block) {
 // Update an existing block by BlockID
 void DiskStore::update(BlockID block_id, std::shared_ptr<Block> block) {
   // overwrite block to correct position for that block id
+  file.clear();
   file.seekp(position(block_id));
   block->write(file);
 }
@@ -60,6 +62,7 @@ std::shared_ptr<Block> DiskStore::get_block(BlockID block_id) {
   BlockKind kind = get_meta()->lookup(block_id);
 
   // read block from correct position for that block id
+  file.clear();
   file.seekg(position(block_id));
   if (kind == BlockKindData) {
     std::shared_ptr block = std::make_shared<Data>();
@@ -79,6 +82,7 @@ void DiskStore::set_meta(std::shared_ptr<Metadata> metadata) {
 
 void DiskStore::persist() {
   // persist metadata changes to disk
+  file.clear();
   file.seekp(METADATA_POS);
   meta->write(file);
 

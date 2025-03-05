@@ -15,7 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
-size_t Database::load(std::istream &games_tsv) {
+std::pair<size_t,size_t> Database::load(std::istream &games_tsv) {
   // skip header line
   std::string line;
   std::getline(games_tsv, line);
@@ -51,10 +51,10 @@ size_t Database::load(std::istream &games_tsv) {
   }
   // build B+tree index on collected key data block pointers
   // since each data block only contains 1 key the index built is dense
-  index.bulk_load(key_pointers);
+  size_t n_levels = index.bulk_load(key_pointers);
   store->persist();
 
-  return n_records;
+  return std::make_pair(n_records, n_levels);
 }
 
 std::vector<Record> Database::query(QueryMode mode, Key begin, Key end) const {

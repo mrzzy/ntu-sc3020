@@ -21,13 +21,13 @@
 
 #define KEY_COL fg_pct_home
 
-Data::Data() : next_id(BLOCK_NULL) {
+uint8_t Data::fs_capacity() {
   // determine data block record capacity from fs block size
   // header: 1 uint8_t storing number of records in block
   size_t header_size = sizeof(uint8_t);
   // need to store both record and record id mapping for each record
   size_t record_size = Record::size() + sizeof(RecordID);
-  capacity = (block_size() - header_size - sizeof(next_id)) / record_size;
+  return (block_size() - header_size - sizeof(next_id)) / record_size;
 }
 
 RecordID Data::insert(const Record &record) {

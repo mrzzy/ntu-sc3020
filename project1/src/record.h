@@ -1,9 +1,3 @@
-#include "id.h"
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
-#include <iostream>
-#include <limits>
 #ifndef RECORD_H
 #define RECORD_H 1
 /*
@@ -12,6 +6,10 @@
  * Record
  */
 
+#include "id.h"
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 

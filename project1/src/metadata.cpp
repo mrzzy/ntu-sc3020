@@ -10,11 +10,9 @@
 #include "fs.h"
 #include <algorithm>
 #include <cstdint>
-#include <iterator>
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
-#include <utility>
 #include <vector>
 
 void Metadata::read(std::istream &in) {
@@ -78,9 +76,7 @@ BlockKind Metadata::lookup(BlockID id) const {
   throw std::runtime_error(ss.str());
 }
 
-BlockID Metadata::new_id() const {
-  return data_ids.size() + btree_ids.size();
-}
+BlockID Metadata::new_id() const { return data_ids.size() + btree_ids.size(); }
 
 bool Metadata::operator==(const Metadata &other) const {
   return (btree_root_id == other.btree_root_id) &&

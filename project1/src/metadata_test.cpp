@@ -7,7 +7,6 @@
 #include "block.h"
 #include "metadata.h"
 #include <gtest/gtest.h>
-#include <utility>
 
 TEST(metadata_test, test_write_read) {
   Metadata metadata;

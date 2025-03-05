@@ -17,9 +17,11 @@ class Data : public Block {
 public:
   // no. of records the data block can store
   uint8_t capacity;
+  /* Compute capacity based on filesystem block size */
+  static uint8_t fs_capacity();
 
   // maps record id to position of record in block
-  std::vector<uint8_t> record_pos;
+  std::vector<RecordID> record_pos;
   // fields stored in a columar format (structure of arrays) for better data
   // locality when scanning by single field.
   // fields stored clustered (ordered) by key
@@ -38,7 +40,7 @@ public:
   // none
   BlockID next_id;
 
-  Data();
+  Data() : capacity(fs_capacity()){};
   /** Insert the given record into the data block */
   RecordID insert(const Record &record);
   /** Get the record for given record ID */
@@ -47,7 +49,7 @@ public:
   uint8_t count() const { return record_pos.size(); }
   /** Minimum record key of any record stored the data block */
   Key key() const;
-  /** Whether the data block is full */
+  /** Minimum record key of any record stored the data block */
   bool is_full() const { return count() >= capacity; }
 
   virtual void read(std::istream &in) override;
