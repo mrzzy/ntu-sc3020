@@ -53,6 +53,9 @@ int main(int argc, char *argv[]) {
     std::cout << "[Task 2]" << std::endl;
     std::cout << "Keys per B+Tree node (parameter n): "
               << BTreeNode::fs_capacity() << std::endl;
+    std::cout << "No. of B+Tree nodes: "
+              << store->get_meta()->get_ids(BlockKindBTreeNode).size()
+              << std::endl;
     std::cout << "Levels in B+Tree: " << n_levels << std::endl;
     // dump root node keys
     std::cout << "Keys in root node:";
