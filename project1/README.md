@@ -1,5 +1,16 @@
 # SC3020 Project 1
 
+B+Tree database storing NBA Games data:
+
+- In Project 1, we are tasked with ingesting NBA games data from a Tab-Seperated Values (TSV)
+  onto disk, and subquently performing a range query on stored values with a query criteria:
+
+  > "FG_PCT_home" falls between 0.6 and 0.9 (inclusive).
+
+- The range query is to performed over a B+Tree index built during storage. We are
+  to demonstrate the performance benefits of index lookup vs a brute force
+  full table scan.
+
 ## Setup
 
 ### Requirements
