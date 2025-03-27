@@ -9,6 +9,7 @@
 all: lint fmt
 
 lint:
+	codespell
 	black --check .
 	isort --check .
 	ruff check
