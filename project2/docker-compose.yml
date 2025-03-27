@@ -1,0 +1,21 @@
+#
+# SC3020
+# Docker Compose
+# Postgres with TPC-H
+#
+
+version: '3.8'
+
+services:
+  postgres:
+    build: postgres_tpch
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+
