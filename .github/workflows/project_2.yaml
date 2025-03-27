@@ -2,6 +2,7 @@ name: "Project2 CI"
 on:
   push:
     paths:
+      - ".github/**"
       - "project2/**"
 defaults:
   run:
