@@ -2,7 +2,7 @@ name: "Publish: Project 1 container"
 on:
   push: 
     paths:
-      - ".github/**"
+      - ".github/workflows/project_1.yaml"
       - "project1/**"
 jobs:
   publish:
