@@ -1,6 +1,11 @@
 name: "Project2 CI"
 on:
-  push: {}
+  push:
+    paths:
+      - "project2/**"
+defaults:
+  run:
+    working-directory: project2
 jobs:
   lint-test:
     runs-on: ubuntu-22.04

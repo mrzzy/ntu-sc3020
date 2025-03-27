@@ -1,6 +1,8 @@
 name: "Publish: Project 1 container"
 on:
-  push: {}
+  push: 
+    paths:
+      - "project1/**"
 jobs:
   publish:
     runs-on: ubuntu-latest
