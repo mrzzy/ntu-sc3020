@@ -9,6 +9,7 @@ packaging==24.2
 pathspec==0.12.1
 platformdirs==4.3.7
 pluggy==1.5.0
+psycopg==3.2.6
 psycopg-binary==3.2.6
 pytest==8.3.5
 ruff==0.11.2
