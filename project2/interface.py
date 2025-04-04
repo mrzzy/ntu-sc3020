@@ -119,7 +119,7 @@ class GUI:
         self.root.protocol("WM_DELETE_WINDOW", on_closing)
         # Start GUI
         self.root.mainloop()
-        
+
     def connect_db(self):
         """Connect to database"""
         try:
@@ -146,11 +146,6 @@ class GUI:
         except psycopg2.Error as e:
           messagebox.showerror("Error", f"Failed to connect to PostgreSQL\n{str(e)}")
           
-
-    def _mock_connect_db(self):
-        """fake info"""
-        messagebox.showinfo("Success", "Connected to database successfully!")
-
     @todo
     def convert_query(self):
         """Convert SQL query to Pipe Syntax"""
