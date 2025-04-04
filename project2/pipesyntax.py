@@ -171,7 +171,8 @@ def convert_qep_to_pipe_syntax(json_str):
   except Exception as e:
     print(f"Unexpected error: {e}")
     return ""
-
+def main(preprocessed_plan):
+  return None
 if __name__ == "__main__":
   try:
     with open('/Users/zuozhiyi/Desktop/sc3020/ntu-sc3020/project2/qep_8.json') as f:

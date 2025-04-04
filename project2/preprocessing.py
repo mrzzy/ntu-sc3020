@@ -6,7 +6,7 @@
 
 import os
 
-import psycopg
+import psycopg 
 
 
 class Postgres:
@@ -23,7 +23,8 @@ class Postgres:
             raise RuntimeError("fetch of query plan of SQL returned no results.")
         return result[0][0]["Plan"]
 
-
+def main(qep):
+    return None
 if __name__ == "__main__":
     print(
         Postgres(

@@ -4,6 +4,9 @@ from typing import Dict, Any
 import psycopg2 
 import os
 from dotenv import load_dotenv
+import json
+import pipesyntax
+import preprocessing
 load_dotenv()
 def todo(function):
     """Not implemented yet."""
@@ -79,7 +82,9 @@ class GUI:
         # Convert button
         self.convert_btn = ttk.Button(main_frame, text="Convert", command=self._mock_convert_query)
         self.convert_btn.grid(row=2, column=0, pady=5)
-        
+        # A Test button
+        self.test_btn = ttk.Button(main_frame, text="Test Real Convert", command=self.convert_query)
+        self.test_btn.grid(row=2, column=1, pady=5)
         # output frame
         results_frame = ttk.Frame(main_frame)
         results_frame.grid(row=3, column=0, columnspan=2, sticky=("wens"))
@@ -149,10 +154,36 @@ class GUI:
         except psycopg2.Error as e:
           messagebox.showerror("Error", f"Failed to connect to PostgreSQL\n{str(e)}")
           
-    @todo
     def convert_query(self):
         """Convert SQL query to Pipe Syntax"""
-        pass
+        if not self.connect or not self.cur:
+            messagebox.showwarning("Warning", "Please connect to database first")
+            return
+        if not self.query_text:
+            messagebox.showwarning("Warning", "Query text widget is not initialized")
+            return
+        query = self.query_text.get("1.0", tk.END).strip()
+        if not query:
+            messagebox.showwarning("Warning", "Please enter a SQL query")
+            return
+            
+        try:
+            qep = self._generate_qep(query)
+            if self.qep_text is None:
+                messagebox.showwarning("Warning", "QEP text widget is not initialized")
+                return
+            self.qep_text.delete("1.0", tk.END)
+            self.qep_text.insert("1.0", json.dumps(qep, indent=2))
+            pipe_syntax = self._generate_pipe_syntax(qep)
+            if self.result_text is None:
+                messagebox.showwarning("Warning", "Result text widget is not initialized")
+                return
+            self.result_text.delete("1.0", tk.END)
+            self.result_text.insert("1.0", pipe_syntax)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Conversion failed: {str(e)}")
+
     def _mock_convert_query(self):
         """fake output, not sure if the result is correct or not. """
         if self.query_text is None:
@@ -167,7 +198,7 @@ class GUI:
             messagebox.showwarning("Warning", "QEP text widget is not initialized")
             return
         self.qep_text.delete("1.0", tk.END)
-        self.qep_text.insert("1.0", mock_qep)
+        self.qep_text.insert("1.0", json.dumps(mock_qep, indent=2))
 
         mock_pipe_syntax = self._generate_mock_pipe_syntax()
         if self.result_text is None:
@@ -248,10 +279,21 @@ class GUI:
   }
 }
 """
-    @todo
-    def _generate_pipe_syntax(self):
+    def _generate_pipe_syntax(self,qep):
         """Generate Pipe Syntax from QEP"""
-        pass
+        try:
+            preprocess = preprocessing.main(qep)
+            if preprocess is None:
+                messagebox.showerror("Error", "Preprocessing failed")
+                preprocess = "Preprocessing failed"
+            pipe_syntax = pipesyntax.main(preprocess)
+            if pipe_syntax is None:
+                messagebox.showerror("Error", "Pipe syntax generation failed")
+                pipe_syntax = "Pipe syntax generation failed"
+            return f"The output of preprocess.main is: \n{preprocess}\nThe output of pipesyntax.main is: \n{pipe_syntax}"
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate pipe syntax: {str(e)}")
+            return str(e)
     
     def _generate_mock_pipe_syntax(self):
         """fake pipe syntax"""
