@@ -2,7 +2,7 @@ import json
 import os
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import psycopg2
 from dotenv import load_dotenv
@@ -13,7 +13,7 @@ import preprocessing
 load_dotenv()
 
 
-def todo(function):
+def todo(function: Any) -> Any:
     """Not implemented yet."""
     name = function.__name__
     print(f"{name} is not implemented yet.")
@@ -22,7 +22,7 @@ def todo(function):
 class GUI:
     """GUI for Project2"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.root = None
         self.query_text = None
         self.result_text = None
@@ -30,7 +30,7 @@ class GUI:
         self.connect = None
         self.cur = None
 
-    def run(self):
+    def run(self) -> None:
         """Initialize and run the GUI, but no function yet."""
         self.root = tk.Tk()
         self.root.title("SQL QEP to Pipe Syntax Converter")
@@ -149,7 +149,7 @@ class GUI:
         # Start GUI
         self.root.mainloop()
 
-    def connect_db(self):
+    def connect_db(self) -> None:
         """Connect to database"""
         try:
             para = {
@@ -195,7 +195,7 @@ class GUI:
         except psycopg2.Error as e:
             messagebox.showerror("Error", f"Failed to connect to PostgreSQL\n{str(e)}")
 
-    def convert_query(self):
+    def convert_query(self) -> None:
         """Convert SQL query to Pipe Syntax"""
         if not self.connect or not self.cur:
             messagebox.showwarning("Warning", "Please connect to database first")
@@ -227,7 +227,7 @@ class GUI:
         except Exception as e:
             messagebox.showerror("Error", f"Conversion failed: {str(e)}")
 
-    def _mock_convert_query(self):
+    def _mock_convert_query(self) -> None:
         """fake output, not sure if the result is correct or not."""
         if self.query_text is None:
             messagebox.showwarning("Warning", "Query text widget is not initialized")
@@ -251,7 +251,7 @@ class GUI:
         for component, cost in mock_pipe_syntax:
             self.result_text.insert(tk.END, f"{component}  // Cost: {cost:.2f}\n")
 
-    def _generate_qep(self, query):
+    def _generate_qep(self, query: str) -> Union[Dict[str, Any], str]:
         """Generate Query Execution Plan"""
         try:
             explain_query = f"EXPLAIN (FORMAT JSON) {query}"
@@ -268,7 +268,7 @@ class GUI:
             messagebox.showerror("Error", f"Failed to generate QEP\n{str(e)}")
             return "None"
 
-    def _generate_mock_qep(self, query):
+    def _generate_mock_qep(self, query: str) -> str:
         """fake qep"""
         return """
 {
@@ -323,7 +323,7 @@ class GUI:
 }
 """
 
-    def _generate_pipe_syntax(self, qep):
+    def _generate_pipe_syntax(self, qep: Any) -> str:
         """Generate Pipe Syntax from QEP"""
         try:
             preprocess = preprocessing.main(qep)
@@ -339,7 +339,7 @@ class GUI:
             messagebox.showerror("Error", f"Failed to generate pipe syntax: {str(e)}")
             return str(e)
 
-    def _generate_mock_pipe_syntax(self):
+    def _generate_mock_pipe_syntax(self) -> List[Tuple[str, float]]:
         """fake pipe syntax"""
         return [
             ("Scan(customer) | Filter(c_acctbal > 1000)", 400.00),
