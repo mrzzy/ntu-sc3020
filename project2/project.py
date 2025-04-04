@@ -1,5 +1,6 @@
-from interface import GUI
 from dotenv import load_dotenv
+
+from interface import GUI
 
 
 def main():

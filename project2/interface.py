@@ -1,10 +1,12 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
-from typing import Dict, Any
-import psycopg2
-import os
-from dotenv import load_dotenv
 import json
+import os
+import tkinter as tk
+from tkinter import messagebox, ttk
+from typing import Any, Dict
+
+import psycopg2
+from dotenv import load_dotenv
+
 import pipesyntax
 import preprocessing
 

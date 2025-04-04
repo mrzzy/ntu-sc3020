@@ -4,8 +4,8 @@
 # Preprocessing Unit Tests
 #
 
-import os
 import json
+import os
 from pathlib import Path
 
 from preprocessing import Postgres
