@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, Any
 import psycopg2 
+import os
+from dotenv import load_dotenv
+load_dotenv()
 def todo(function):
     """Not implemented yet."""
     name = function.__name__
@@ -33,27 +36,27 @@ class GUI:
         ttk.Label(conn_frame, text="Host:").grid(row=0, column=0, padx=5)
         self.host_entry = ttk.Entry(conn_frame)
         self.host_entry.grid(row=0, column=1, padx=5)
-        self.host_entry.insert(0, "localhost")
+        self.host_entry.insert(0, os.getenv('DB_HOST', 'localhost'))
         #The things waste my storage
         ttk.Label(conn_frame, text="Database:").grid(row=0, column=2, padx=5)
         self.db_entry = ttk.Entry(conn_frame)
         self.db_entry.grid(row=0, column=3, padx=5)
-        self.db_entry.insert(0, "postgres")
+        self.db_entry.insert(0, os.getenv('DB_NAME', 'postgres'))
         #just default
         ttk.Label(conn_frame, text="User:").grid(row=0, column=4, padx=5)
         self.user_entry = ttk.Entry(conn_frame)
         self.user_entry.grid(row=0, column=5, padx=5)
-        self.user_entry.insert(0, "postgres")
-        #just input pw, but not work for now
+        self.user_entry.insert(0, os.getenv('DB_USER', 'postgres'))
+        #input password
         ttk.Label(conn_frame, text="Password:").grid(row=0, column=6, padx=5)
         self.pwd_entry = ttk.Entry(conn_frame, show="*")
         self.pwd_entry.grid(row=0, column=7, padx=5)
-        self.pwd_entry.insert(0, "SC3020")
+        self.pwd_entry.insert(0, os.getenv('DB_PASSWORD', 'SC3020'))
         #default port, change it ur own
         ttk.Label(conn_frame, text="Port:").grid(row=0, column=8, padx=5)
         self.port_entry = ttk.Entry(conn_frame, width=6)
         self.port_entry.grid(row=0, column=9, padx=5)
-        self.port_entry.insert(0, "5432")
+        self.port_entry.insert(0, os.getenv('DB_PORT', '5432'))
         
         #button
         self.connect_btn = ttk.Button(conn_frame, text="Connect", command=self.connect_db)
@@ -124,11 +127,11 @@ class GUI:
         """Connect to database"""
         try:
           para = {
-              "host": self.host_entry.get() if self.host_entry else "localhost",
-              "database": self.db_entry.get() if self.db_entry else "postgres",
-              "user": self.user_entry.get() if self.user_entry else "postgres",
-              "password": self.pwd_entry.get() if self.pwd_entry else "SC3020",
-              "port": self.port_entry.get() if self.port_entry else "5432"
+              "host": self.host_entry.get() if self.host_entry else os.getenv('DB_HOST', 'localhost'),
+              "database": self.db_entry.get() if self.db_entry else os.getenv('DB_NAME', 'postgres'),
+              "user": self.user_entry.get() if self.user_entry else os.getenv('DB_USER', 'postgres'),
+              "password": self.pwd_entry.get() if self.pwd_entry else os.getenv('DB_PASSWORD', 'SC3020'),
+              "port": self.port_entry.get() if self.port_entry else os.getenv('DB_PORT', '5432')
           }
           if self.connect:
               if self.cur:
