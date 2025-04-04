@@ -285,12 +285,12 @@ class GUI:
             preprocess = preprocessing.main(qep)
             if preprocess is None:
                 messagebox.showerror("Error", "Preprocessing failed")
-                preprocess = "Preprocessing failed"
+                preprocess = "Preprocessing failed \n"
             pipe_syntax = pipesyntax.main(preprocess)
             if pipe_syntax is None:
-                messagebox.showerror("Error", "Pipe syntax generation failed")
+                messagebox.showerror("Error", "Pipe syntax generation failed \n")
                 pipe_syntax = "Pipe syntax generation failed"
-            return f"The output of preprocess.main is: \n{preprocess}\nThe output of pipesyntax.main is: \n{pipe_syntax}"
+            return f"The output of preprocess.main is: \n \n{preprocess}\nThe output of pipesyntax.main is: \n \n{pipe_syntax}"
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate pipe syntax: {str(e)}")
             return str(e)
