@@ -136,7 +136,7 @@ class GUI:
               "database": self.db_entry.get() if self.db_entry else os.getenv('DB_NAME', 'postgres'),
               "user": self.user_entry.get() if self.user_entry else os.getenv('DB_USER', 'postgres'),
               "password": self.pwd_entry.get() if self.pwd_entry else os.getenv('DB_PASSWORD', 'SC3020'),
-              "port": self.port_entry.get() if self.port_entry else os.getenv('DB_PORT', '5432')
+              "port": self.port_entry.get() if self.port_entry else os.getenv('DB_PORT', 5432)
           }
           if self.connect:
               if self.cur:
