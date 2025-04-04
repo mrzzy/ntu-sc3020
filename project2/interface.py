@@ -124,11 +124,11 @@ class GUI:
         """Connect to database"""
         try:
           para = {
-              "host": self.host_entry.get(),
-              "database": self.db_entry.get(),
-              "user": self.user_entry.get(),
-              "password": self.pwd_entry.get(),
-              "port": self.port_entry.get()
+              "host": self.host_entry.get() if self.host_entry else "localhost",
+              "database": self.db_entry.get() if self.db_entry else "postgres",
+              "user": self.user_entry.get() if self.user_entry else "postgres",
+              "password": self.pwd_entry.get() if self.pwd_entry else "SC3020",
+              "port": self.port_entry.get() if self.port_entry else "5432"
           }
           if self.connect:
               if self.cur:
@@ -152,15 +152,24 @@ class GUI:
         pass
     def _mock_convert_query(self):
         """fake output, not sure if the result is correct or not. """
+        if self.query_text is None:
+            messagebox.showwarning("Warning", "Query text widget is not initialized")
+            return
         query = self.query_text.get("1.0", tk.END).strip()
         if not query:
             messagebox.showwarning("Warning", "Please enter a SQL query")
             return
         mock_qep = self._generate_qep(query)
+        if self.qep_text is None:
+            messagebox.showwarning("Warning", "QEP text widget is not initialized")
+            return
         self.qep_text.delete("1.0", tk.END)
         self.qep_text.insert("1.0", mock_qep)
 
         mock_pipe_syntax = self._generate_mock_pipe_syntax()
+        if self.result_text is None:
+            messagebox.showwarning("Warning", "Result text widget is not initialized")
+            return
         self.result_text.delete("1.0", tk.END)
         for component, cost in mock_pipe_syntax:
             self.result_text.insert(tk.END, f"{component}  // Cost: {cost:.2f}\n")
