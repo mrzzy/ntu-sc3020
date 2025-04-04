@@ -156,7 +156,7 @@ class GUI:
         if not query:
             messagebox.showwarning("Warning", "Please enter a SQL query")
             return
-        mock_qep = self._generate_mock_qep(query)
+        mock_qep = self._generate_qep(query)
         self.qep_text.delete("1.0", tk.END)
         self.qep_text.insert("1.0", mock_qep)
 
@@ -164,10 +164,24 @@ class GUI:
         self.result_text.delete("1.0", tk.END)
         for component, cost in mock_pipe_syntax:
             self.result_text.insert(tk.END, f"{component}  // Cost: {cost:.2f}\n")
-    @todo
+    
     def _generate_qep(self, query):
         """Generate Query Execution Plan"""
-        pass
+        try:
+            explain_query = f"EXPLAIN (FORMAT JSON) {query}"
+            if self.cur is None:
+                messagebox.showerror("Error", "Not connected to database")
+                return "None"
+            self.cur.execute(explain_query)
+            qep_result = self.cur.fetchone()
+            if qep_result and qep_result[0]:
+                return qep_result[0]
+            else:
+                raise Exception("No QEP generated")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate QEP\n{str(e)}")
+            return "None"
+
     def _generate_mock_qep(self, query):
         """fake qep"""
         return """
