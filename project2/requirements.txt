@@ -15,5 +15,7 @@ psycopg-binary==3.2.6
 pytest==8.3.5
 python-dotenv==1.1.0
 ruff==0.11.2
+sqlglot==26.12.1
+sqlglotrs==0.4.0
 tomli==2.2.1
 typing_extensions==4.13.0
