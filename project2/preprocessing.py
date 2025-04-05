@@ -5,8 +5,12 @@
 #
 
 import os
+from typing import Iterator
 
 import psycopg
+from sqlglot import exp
+from sqlglot import parse_one
+from sqlglot.optimizer.scope import build_scope
 
 
 class Postgres:
@@ -54,26 +58,37 @@ WHERE
         return result[2]
 
 
+def enrich(plan: dict, sql: str) -> dict:
+    """Enrich the given query execution plan using elements parsed from the given SQL."""
+    ast = parse_one(sql, dialect="postgres")
+
+    def annotate_cols(
+        plan: dict,
+        selects: Iterator[exp.Select],
+        top_level: bool = True,
+    ):
+        """Perform post-order DFS to annotate the given QEP plan with columns from the given SELECT AST nodes.
+        Matching QEP Plan nodes will have a 'Columns' key set a list of matched columns.
+        """
+        # match plan nodes that are select statements using heurstics:
+        # - top-level nodes are top-level select statements
+        # - init plan & subplans are nested select statements
+        if top_level or plan.get("Parent Relationship", "") in ["InitPlan", "SubPlan"]:
+            try:
+                select = next(selects)
+            except StopIteration:
+                raise RuntimeError("QEP Plan node & Select AST count mismatch")
+            plan["Columns"] = [str(c) for c in select.expressions]
+
+        # recursively traverse children if any
+        if "Plans" in plan:
+            for child in plan["Plans"]:
+                annotate_cols(child, selects, top_level=False)
+        return plan
+
+    plan = annotate_cols(plan, selects=ast.find_all(exp.Select))
+    return plan
+
+
 def main(qep):
     return None
-
-
-if __name__ == "__main__":
-    print(
-        Postgres(
-            host="localhost", user="postgres", password=os.environ["POSTGRES_PASSWORD"]
-        ).explain(
-            """
-                       select
-	sum(l_extendedprice * l_discount) as revenue
-from
-	lineitem
-where
-	l_shipdate >= date '1997-01-01'
-	and l_shipdate < date '1997-01-01' + interval '1' year
-	and l_discount between 0.02 - 0.01 and 0.02 + 0.01
-	and l_quantity < 25
-LIMIT 1;
-                       """
-        )
-    )
