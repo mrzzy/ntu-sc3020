@@ -23,6 +23,36 @@ class Postgres:
             raise RuntimeError("fetch of query plan of SQL returned no results.")
         return result[0][0]["Plan"]
 
+    def get_primary_key(self, table: str, schema: str = "public") -> str:
+        """Get the primary key of the given table / relation in the given schema."""
+        # query primary key from information schema
+        with self.connection.transaction():
+            cursor = self.connection.execute(
+                """
+SELECT
+    kc.table_schema,
+    kc.table_name,
+    kc.column_name
+FROM
+    information_schema.table_constraints tc
+JOIN
+    information_schema.key_column_usage kc
+    ON tc.constraint_name = kc.constraint_name
+    AND tc.table_schema = kc.table_schema
+WHERE
+    tc.constraint_type = 'PRIMARY KEY'
+    AND kc.table_name = %s
+    AND kc.table_schema = %s
+    """,
+                (table, schema),
+            )
+            result = cursor.fetchone()
+        if result is None:
+            raise RuntimeError("fetch of query plan of SQL returned no results.")
+
+        # result: (schema, table, primary key)
+        return result[2]
+
 
 def main(qep):
     return None

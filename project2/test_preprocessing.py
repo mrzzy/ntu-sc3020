@@ -16,3 +16,6 @@ def test_postgres_explain(db: Postgres):
     query_dir = Path(__file__).parent / "queries"
     for query_file in query_dir.glob("*.sql"):
         db.explain(query_file.read_text())
+
+def test_postgres_get_primary_key(db: Postgres):
+    assert db.get_primary_key("customer") == "c_custkey"
