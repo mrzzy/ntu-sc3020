@@ -210,7 +210,6 @@ class GUI:
         if not query:
             messagebox.showwarning("Warning", "Please enter a SQL query")
             return
-
         try:
             qep = self._generate_qep(query)
             if self.qep_text is None:
@@ -246,7 +245,6 @@ class GUI:
             return
         self.qep_text.delete("1.0", tk.END)
         self.qep_text.insert("1.0", json.dumps(mock_qep, indent=2))
-
         mock_pipe_syntax = self._generate_mock_pipe_syntax()
         if self.result_text is None:
             messagebox.showwarning("Warning", "Result text widget is not initialized")
