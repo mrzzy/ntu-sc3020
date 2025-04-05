@@ -2,9 +2,9 @@ import json
 import os
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
-import psycopg2
+import psycopg
 from dotenv import load_dotenv
 
 import pipesyntax
@@ -158,7 +158,7 @@ class GUI:
                     if self.host_entry
                     else os.getenv("DB_HOST", "localhost")
                 ),
-                "database": (
+                "dbname": (
                     self.db_entry.get()
                     if self.db_entry
                     else os.getenv("DB_NAME", "postgres")
@@ -184,15 +184,18 @@ class GUI:
                     self.cur.close()
                 self.connect.close()
             print("connecting")
-            self.connect = psycopg2.connect(**para)
+            self.connect = psycopg.connect(**para)
             self.cur = self.connect.cursor()
             # try
             print("connected")
             self.cur.execute("SELECT version();")
             version = self.cur.fetchone()
-            messagebox.showinfo("Success", f"Connected to PostgreSQL\n{version[0]}")
+            if version is None:
+                messagebox.showinfo("Success", "Connected to PostgreSQL")
+            else:
+                messagebox.showinfo("Success", f"Connected to PostgreSQL\n{version[0]}")
 
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             messagebox.showerror("Error", f"Failed to connect to PostgreSQL\n{str(e)}")
 
     def convert_query(self) -> None:
@@ -236,6 +239,7 @@ class GUI:
         if not query:
             messagebox.showwarning("Warning", "Please enter a SQL query")
             return
+
         mock_qep = self._generate_qep(query)
         if self.qep_text is None:
             messagebox.showwarning("Warning", "QEP text widget is not initialized")
@@ -254,11 +258,11 @@ class GUI:
     def _generate_qep(self, query: str) -> Union[Dict[str, Any], str]:
         """Generate Query Execution Plan"""
         try:
-            explain_query = f"EXPLAIN (FORMAT JSON) {query}"
+            explain_sql = f"EXPLAIN (FORMAT JSON) {query}"
             if self.cur is None:
                 messagebox.showerror("Error", "Not connected to database")
                 return "None"
-            self.cur.execute(explain_query)
+            self.cur.execute(explain_sql)
             qep_result = self.cur.fetchone()
             if qep_result and qep_result[0]:
                 return qep_result[0]
