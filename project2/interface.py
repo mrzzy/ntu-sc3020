@@ -332,7 +332,7 @@ class GUI:
             if preprocess is None:
                 messagebox.showerror("Error", "Preprocessing failed")
                 preprocess = "Preprocessing failed \n"
-            pipe_syntax = pipesyntax.main(preprocess)
+            pipe_syntax = pipesyntax.main(json.dumps(qep, indent=2))
             if pipe_syntax is None:
                 messagebox.showerror("Error", "Pipe syntax generation failed \n")
                 pipe_syntax = "Pipe syntax generation failed"
