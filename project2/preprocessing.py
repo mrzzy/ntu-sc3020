@@ -135,5 +135,8 @@ def enrich(plan: dict, enrichers: Iterable[Enricher]) -> dict:
     return transform(plan, enrich_fn)
 
 
-def main(qep):
-    return None
+def preprocess(sql: str, db: Postgres) -> dict:
+    """Parses, preprocess given SQL into enriched QEP plan using the given Postgres DB."""
+    plan = db.explain(sql)
+    plan = enrich(plan, [ColumnEnricher(sql), PrimaryKeyEnricher(db)])
+    return plan

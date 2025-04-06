@@ -13,6 +13,7 @@ from preprocessing import (
     Postgres,
     PrimaryKeyEnricher,
     enrich,
+    preprocess,
     transform,
 )
 
@@ -81,3 +82,8 @@ def test_postgres_enrich_primary_key(db: Postgres, query_sqls: list[str]):
     assert len(pk_nodes) == 2
     assert pk_nodes[0]["Primary Key"] == "l_orderkey"
     assert pk_nodes[1]["Primary Key"] == "s_suppkey"
+
+
+def test_preprocess(db: Postgres, query_sqls: list[str]):
+    for sql in query_sqls:
+        preprocess(sql, db)
