@@ -9,9 +9,9 @@ from pathlib import Path
 import pytest
 
 from preprocessing import (
-    ColumnEnricher,
     Postgres,
     PrimaryKeyEnricher,
+    ProjectionEnricher,
     enrich,
     preprocess,
     transform,
@@ -34,23 +34,23 @@ def test_postgres_get_primary_key(db: Postgres):
     assert db.get_primary_key("customer") == "c_custkey"
 
 
-def test_postgres_enrich_columns(db: Postgres, query_sqls: list[str]):
+def test_postgres_enrich_projections(db: Postgres, query_sqls: list[str]):
     # test: TPC-H 4th query 4.sql
     sql = query_sqls[3]
     plan = db.explain(sql)
-    plan = enrich(plan, [ColumnEnricher(sql)])
+    plan = enrich(plan, [ProjectionEnricher(sql)])
 
-    col_nodes = []
+    proj_nodes = []
 
-    def collect_cols(qep_node: dict, depth: int):
-        if "Columns" in qep_node:
-            col_nodes.append(qep_node)
+    def collect_proj(qep_node: dict, depth: int):
+        if "Projections" in qep_node:
+            proj_nodes.append(qep_node)
         return qep_node
 
-    transform(plan, collect_cols)
+    transform(plan, collect_proj)
 
-    assert len(col_nodes) == 2
-    assert col_nodes[0]["Columns"] == [
+    assert len(proj_nodes) == 2
+    assert proj_nodes[0]["Projections"] == [
         "s_acctbal",
         "s_name",
         "n_name",
@@ -60,7 +60,7 @@ def test_postgres_enrich_columns(db: Postgres, query_sqls: list[str]):
         "s_phone",
         "s_comment",
     ]
-    assert col_nodes[1]["Columns"] == ["MIN(ps_supplycost)"]
+    assert proj_nodes[1]["Projections"] == ["MIN(ps_supplycost)"]
 
 
 def test_postgres_enrich_primary_key(db: Postgres, query_sqls: list[str]):

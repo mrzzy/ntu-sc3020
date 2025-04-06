@@ -66,8 +66,8 @@ class Enricher(ABC):
         """Enrich & return the given QEP node that given depth (root = 0 depth)."""
 
 
-class ColumnEnricher(Enricher):
-    """QEP node enricher that adds 'Columns' for SELECT nodes from SQL query."""
+class ProjectionEnricher(Enricher):
+    """QEP node enricher that adds 'Projections' for SELECT nodes from SQL query."""
 
     def __init__(self, sql: str):
         ast = parse_one(sql, dialect="postgres")
@@ -85,7 +85,7 @@ class ColumnEnricher(Enricher):
                 select = next(self.selects)
             except StopIteration:
                 raise RuntimeError("QEP Plan node & Select AST count mismatch")
-            qep_node["Columns"] = [str(c) for c in select.expressions]
+            qep_node["Projections"] = [str(c) for c in select.expressions]
         return qep_node
 
 
@@ -138,5 +138,5 @@ def enrich(plan: dict, enrichers: Iterable[Enricher]) -> dict:
 def preprocess(sql: str, db: Postgres) -> dict:
     """Parses, preprocess given SQL into enriched QEP plan using the given Postgres DB."""
     plan = db.explain(sql)
-    plan = enrich(plan, [ColumnEnricher(sql), PrimaryKeyEnricher(db)])
+    plan = enrich(plan, [ProjectionEnricher(sql), PrimaryKeyEnricher(db)])
     return plan
