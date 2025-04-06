@@ -4,16 +4,16 @@
 # Preprocessing
 #
 
-import os
-from typing import Iterator
+from abc import ABC, abstractmethod
+from typing import Callable, Iterable
 
 import psycopg
-from sqlglot import exp
-from sqlglot import parse_one
-from sqlglot.optimizer.scope import build_scope
+from sqlglot import exp, parse_one
 
 
 class Postgres:
+    """Postgres DB facade."""
+
     def __init__(self, **conn_args) -> None:
         self.connection = psycopg.connect(**conn_args)
 
@@ -58,37 +58,85 @@ WHERE
         return result[2]
 
 
-def enrich(plan: dict, sql: str) -> dict:
-    """Enrich the given query execution plan using elements parsed from the given SQL."""
-    ast = parse_one(sql, dialect="postgres")
+class Enricher(ABC):
+    """QEP node enricher that takes as input a QEP node, enriches it and returns it"""
 
-    def annotate_cols(
-        plan: dict,
-        selects: Iterator[exp.Select],
-        top_level: bool = True,
-    ):
-        """Perform post-order DFS to annotate the given QEP plan with columns from the given SELECT AST nodes.
-        Matching QEP Plan nodes will have a 'Columns' key set a list of matched columns.
-        """
+    @abstractmethod
+    def enrich(self, qep_node: dict, depth: int) -> dict:
+        """Enrich & return the given QEP node that given depth (root = 0 depth)."""
+
+
+class ProjectionEnricher(Enricher):
+    """QEP node enricher that adds 'Projections' for SELECT nodes from SQL query."""
+
+    def __init__(self, sql: str):
+        ast = parse_one(sql, dialect="postgres")
+        self.selects = ast.find_all(exp.Select)
+
+    def enrich(self, qep_node: dict, depth: int) -> dict:
         # match plan nodes that are select statements using heurstics:
         # - top-level nodes are top-level select statements
         # - init plan & subplans are nested select statements
-        if top_level or plan.get("Parent Relationship", "") in ["InitPlan", "SubPlan"]:
+        if depth == 0 or qep_node.get("Parent Relationship", "") in [
+            "InitPlan",
+            "SubPlan",
+        ]:
             try:
-                select = next(selects)
+                select = next(self.selects)
             except StopIteration:
                 raise RuntimeError("QEP Plan node & Select AST count mismatch")
-            plan["Columns"] = [str(c) for c in select.expressions]
+            qep_node["Projections"] = [str(c) for c in select.expressions]
+        return qep_node
 
+
+class PrimaryKeyEnricher(Enricher):
+    """QEP node enricher that adds 'Primary Key' for Table / Relation nodes"""
+
+    def __init__(self, db: Postgres):
+        self.db = db
+
+    def enrich(self, qep_node: dict, depth: int) -> dict:
+        relation = "Relation Name"
+        if relation in qep_node:
+            qep_node["Primary Key"] = self.db.get_primary_key(qep_node[relation])
+        return qep_node
+
+
+def transform(plan: dict, fn: Callable[[dict, int], dict]) -> dict:
+    """Transform the given QEP using the given transform fn.
+    Traverses the given QEP nodes post-order and calling the given transform fn on each node.
+    Transform fn is given QEP node & depth (root=0)."""
+
+    def dfs(
+        qep_node: dict,
+        depth: int,
+    ):
+        """Perform post-order DFS to enrich the QEP plan nodes"""
+        # transform using given fn
+        qep_node = fn(qep_node, depth)
         # recursively traverse children if any
-        if "Plans" in plan:
-            for child in plan["Plans"]:
-                annotate_cols(child, selects, top_level=False)
+        if "Plans" in qep_node:
+            for child in qep_node["Plans"]:
+                dfs(child, depth=depth + 1)
         return plan
 
-    plan = annotate_cols(plan, selects=ast.find_all(exp.Select))
+    plan = dfs(plan, depth=0)
     return plan
 
 
-def main(qep):
-    return None
+def enrich(plan: dict, enrichers: Iterable[Enricher]) -> dict:
+    """Enrich the query execution plan using the given entrichers."""
+
+    def enrich_fn(qep_node: dict, depth: int):
+        for enricher in enrichers:
+            qep_node = enricher.enrich(qep_node, depth)
+        return qep_node
+
+    return transform(plan, enrich_fn)
+
+
+def preprocess(sql: str, db: Postgres) -> dict:
+    """Parses, preprocess given SQL into enriched QEP plan using the given Postgres DB."""
+    plan = db.explain(sql)
+    plan = enrich(plan, [ProjectionEnricher(sql), PrimaryKeyEnricher(db)])
+    return plan

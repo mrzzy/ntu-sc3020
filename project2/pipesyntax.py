@@ -1,5 +1,5 @@
 import json
-import re
+
 
 def get_max_depth(plan):
     """helper function"""
@@ -9,6 +9,7 @@ def get_max_depth(plan):
     if not children:
         return 0
     return 1 + max(get_max_depth(child) for child in children)
+
 
 def parse_plan(plan, depth=0, max_depth=None):
     if not plan:
@@ -31,7 +32,6 @@ def parse_plan(plan, depth=0, max_depth=None):
     result = ""
     current_ops = ""
 
-
     # Handle FROM clause for scan operations
     if node_type in ("Seq Scan", "Index Scan"):
         table = plan.get("Relation Name", plan.get("Alias", "Unknown"))
@@ -49,14 +49,24 @@ def parse_plan(plan, depth=0, max_depth=None):
     if node_type == "Aggregate":
         mode = plan.get("Partial Mode", "")
         output_raw = plan.get("Output", [])
-        output_expr = ", ".join([clean_expression(o) for o in output_raw]) if isinstance(output_raw, list) else clean_expression(output_raw) if output_raw else "aggregate values"
-        
+        output_expr = (
+            ", ".join([clean_expression(o) for o in output_raw])
+            if isinstance(output_raw, list)
+            else clean_expression(output_raw) if output_raw else "aggregate values"
+        )
+
         if mode == "Partial":
-            current_ops += f"{indent}|> AGGREGATE PARTIAL {output_expr} -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> AGGREGATE PARTIAL {output_expr} -- Cost: {cost_display}\n"
+            )
         elif mode == "Finalize":
-            current_ops += f"{indent}|> AGGREGATE FINALIZE {output_expr} -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> AGGREGATE FINALIZE {output_expr} -- Cost: {cost_display}\n"
+            )
         else:
-            current_ops += f"{indent}|> AGGREGATE {output_expr} -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> AGGREGATE {output_expr} -- Cost: {cost_display}\n"
+            )
 
     elif node_type == "Gather":
         current_ops += f"{indent}|> GATHER -- Cost: {cost_display}\n"
@@ -68,14 +78,16 @@ def parse_plan(plan, depth=0, max_depth=None):
     elif node_type == "Sort":
         keys = plan.get("Sort Key", [])
         cleaned_keys = [clean_expression(k) for k in keys]
-        current_ops += f"{indent}|> ORDER BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
+        current_ops += (
+            f"{indent}|> ORDER BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
+        )
 
     elif node_type == "Incremental Sort":
         keys = plan.get("Sort Key", [])
         presorted_keys = plan.get("Presorted Key", [])
         cleaned_keys = [clean_expression(k) for k in keys]
         cleaned_presorted = [clean_expression(k) for k in presorted_keys]
-        
+
         if presorted_keys:
             current_ops += f"{indent}|> INCREMENTAL SORT (presorted: {', '.join(cleaned_presorted)}) BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
         else:
@@ -85,7 +97,9 @@ def parse_plan(plan, depth=0, max_depth=None):
         join_filter = plan.get("Join Filter", "")
         if join_filter:
             join_filter = clean_expression(join_filter)
-            current_ops += f"{indent}|> NESTED LOOP ON {join_filter} -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> NESTED LOOP ON {join_filter} -- Cost: {cost_display}\n"
+            )
         else:
             current_ops += f"{indent}|> NESTED LOOP -- Cost: {cost_display}\n"
 
@@ -105,7 +119,7 @@ def parse_plan(plan, depth=0, max_depth=None):
 
     elif node_type == "Materialize":
         current_ops += f"{indent}|> MATERIALIZE -- Cost: {cost_display}\n"
-    
+
     # Handle subplan
     if plan.get("Parent Relationship") == "SubPlan":
         subplan = plan.get("Subplan Name", "Unnamed SubPlan")
