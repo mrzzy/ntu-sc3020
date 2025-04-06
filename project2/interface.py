@@ -325,7 +325,7 @@ class GUI:
     def _generate_pipe_syntax(self, qep: Any) -> str:
         try:
 
-            pipe_syntax = pipesyntax.main(json.dumps(qep, indent=2))
+            pipe_syntax = pipesyntax.main(qep)
             if pipe_syntax is None:
                 messagebox.showerror("Error", "Pipe syntax generation failed \n")
                 pipe_syntax = "Pipe syntax generation failed"
