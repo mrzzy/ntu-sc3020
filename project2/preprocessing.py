@@ -12,6 +12,8 @@ from sqlglot import exp, parse_one
 
 
 class Postgres:
+    """Postgres DB facade."""
+
     def __init__(self, **conn_args) -> None:
         self.connection = psycopg.connect(**conn_args)
 
@@ -57,7 +59,7 @@ WHERE
 
 
 class Enricher(ABC):
-    """ "QEP node enricher that takes as input a QEP node, enriches it and returns it"""
+    """QEP node enricher that takes as input a QEP node, enriches it and returns it"""
 
     @abstractmethod
     def enrich(self, qep_node: dict, depth: int) -> dict:
@@ -87,17 +89,19 @@ class ColumnEnricher(Enricher):
         return qep_node
 
 
-#
-# class PrimaryKeyEnricher(Enricher):
-#     """QEP node enricher that adds 'Primary Key' for Table / Relation nodes"""
-#
-#     def __init__(self, db: Postgres):
-#         self.db = db
-#
-#     def enrich(self, qep_node: dict, depth: int) -> dict:
-#         pass
-#
-#
+class PrimaryKeyEnricher(Enricher):
+    """QEP node enricher that adds 'Primary Key' for Table / Relation nodes"""
+
+    def __init__(self, db: Postgres):
+        self.db = db
+
+    def enrich(self, qep_node: dict, depth: int) -> dict:
+        relation = "Relation Name"
+        if relation in qep_node:
+            qep_node["Primary Key"] = self.db.get_primary_key(qep_node[relation])
+        return qep_node
+
+
 def transform(plan: dict, fn: Callable[[dict, int], dict]) -> dict:
     """Transform the given QEP using the given transform fn.
     Traverses the given QEP nodes post-order and calling the given transform fn on each node.

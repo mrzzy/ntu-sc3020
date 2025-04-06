@@ -8,7 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from preprocessing import ColumnEnricher, Postgres, enrich, transform
+from preprocessing import (
+    ColumnEnricher,
+    Postgres,
+    PrimaryKeyEnricher,
+    enrich,
+    transform,
+)
 
 
 @pytest.fixture
@@ -23,8 +29,11 @@ def test_postgres_explain(db: Postgres, query_sqls: list[str]):
         db.explain(sql)
 
 
+def test_postgres_get_primary_key(db: Postgres):
+    assert db.get_primary_key("customer") == "c_custkey"
+
+
 def test_postgres_enrich_columns(db: Postgres, query_sqls: list[str]):
-    # run explain on each query in queries
     # test: TPC-H 4th query 4.sql
     sql = query_sqls[3]
     plan = db.explain(sql)
@@ -53,5 +62,22 @@ def test_postgres_enrich_columns(db: Postgres, query_sqls: list[str]):
     assert col_nodes[1]["Columns"] == ["MIN(ps_supplycost)"]
 
 
-def test_postgres_get_primary_key(db: Postgres):
-    assert db.get_primary_key("customer") == "c_custkey"
+def test_postgres_enrich_primary_key(db: Postgres, query_sqls: list[str]):
+    # test: TPC-H 13th query 13.sql
+    plan = db.explain(query_sqls[12])
+    plan = enrich(plan, [PrimaryKeyEnricher(db)])
+
+    pk_nodes = []
+
+    def collect_pk(qep_node: dict, depth: int):
+        if "Primary Key" in qep_node:
+            pk_nodes.append(qep_node)
+        return qep_node
+
+    transform(plan, collect_pk)
+
+    assert len(pk_nodes) == 2
+
+    assert len(pk_nodes) == 2
+    assert pk_nodes[0]["Primary Key"] == "l_orderkey"
+    assert pk_nodes[1]["Primary Key"] == "s_suppkey"
