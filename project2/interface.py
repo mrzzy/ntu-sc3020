@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from pytest import param
 
 import pipesyntax
-from preprocessing import preprocess, Postgres
+from preprocessing import Postgres, preprocess
 
 load_dotenv()
 
@@ -252,14 +252,14 @@ class GUI:
             if not self.db:
                 raise Exception("No database connection")
             db = Postgres(
-                host= self.db["host"],
-                port= self.db["port"],
-                dbname = self.db["dbname"],
-                user= self.db["user"],
-                password= self.db["password"],
+                host=self.db["host"],
+                port=self.db["port"],
+                dbname=self.db["dbname"],
+                user=self.db["user"],
+                password=self.db["password"],
             )
             qep_result = preprocess(query, db)
-            if qep_result :
+            if qep_result:
                 return qep_result
             else:
                 raise Exception("No QEP generated")
@@ -324,7 +324,7 @@ class GUI:
 
     def _generate_pipe_syntax(self, qep: Any) -> str:
         try:
-            
+
             pipe_syntax = pipesyntax.main(json.dumps(qep, indent=2))
             if pipe_syntax is None:
                 messagebox.showerror("Error", "Pipe syntax generation failed \n")
