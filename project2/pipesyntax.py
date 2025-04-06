@@ -1,22 +1,25 @@
 import json
-from typing import Dict, List, Optional, Tuple, Set, Any
-from sqlglot import parse_one, exp 
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+from sqlglot import exp, parse_one
 
 # Global variable to store aggregate expressions
 global_agg_expressions = []
 
+
 # first pass: top-down scan to collect all subplans/initplans
-def collect_plans(qep_node: Dict, plan_dict: Dict[str,Dict]) -> None:
-    
+def collect_plans(qep_node: Dict, plan_dict: Dict[str, Dict]) -> None:
+
     # Store subplan or initplan
     if qep_node.get("Parent Relationship") in ["InitPlan", "SubPlan"]:
         plan_name = qep_node.get("Subplan Name", "Unknown")
         plan_dict[plan_name] = qep_node
-        
+
     # Continue traversing
     for child in qep_node.get("Plans", []):
         collect_plans(child, plan_dict)
-        
+
+
 def get_max_depth(plan: Dict) -> int:
     """
     Helper function
@@ -30,8 +33,12 @@ def get_max_depth(plan: Dict) -> int:
     return 1 + max(get_max_depth(child) for child in children)
 
 
-def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None, 
-               plan_dict: Dict[str, Dict] = None) -> str:
+def parse_plan(
+    plan: Dict,
+    depth: int = 0,
+    max_depth: Optional[int] = None,
+    plan_dict: Dict[str, Dict] = None,
+) -> str:
     if not plan:
         return ""
     if max_depth is None:
@@ -46,7 +53,7 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
     cost_display = f"{startup_cost} -> {total_cost}"
     # indent = "  " * (max_depth - depth)
     indent = ""
-    
+
     # Skip Hash node
     # if node_type == "Hash":
     #     return ""
@@ -66,30 +73,34 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
     if node_type in ("Seq Scan", "Index Scan", "Index Only Scan"):
         table = plan.get("Relation Name", plan.get("Alias", "Unknown"))
         alias = plan.get("Alias", table)
-        
+
         # table scan
         if alias != table:
             current_ops += f"{indent}FROM {table} AS {alias} -- Cost: {cost_display}\n"
         else:
             current_ops += f"{indent}FROM {table} -- Cost: {cost_display}\n"
-            
+
         # Handle WHERE
         conditions = []
-        
+
         if "Filter" in plan:
             conditions.append(clean_expression(plan["Filter"]))
         if "Index Cond" in plan:
             conditions.append(clean_expression(plan["Index Cond"]))
         if "Recheck Cond" in plan:
-                    conditions.append(clean_expression(plan["Recheck Cond"]))
-        
+            conditions.append(clean_expression(plan["Recheck Cond"]))
+
         if conditions:
-            current_ops += f"{indent}|> WHERE {' AND '.join(conditions)} -- Cost: {cost_display}\n"
-            
+            current_ops += (
+                f"{indent}|> WHERE {' AND '.join(conditions)} -- Cost: {cost_display}\n"
+            )
+
         # For Index Scan or Index Only Scan, add ORDER BY for the indexed column
         if node_type in ("Index Scan", "Index Only Scan") and "Primary Key" in plan:
-            current_ops += f"{indent}|> ORDER BY {plan['Primary Key']} -- Cost: {cost_display}\n"
-            
+            current_ops += (
+                f"{indent}|> ORDER BY {plan['Primary Key']} -- Cost: {cost_display}\n"
+            )
+
     # Handle filter for non-scan nodes
     elif "Filter" in plan:
         filter_expr = clean_expression(plan["Filter"])
@@ -100,9 +111,9 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
         # Extract projections if available
         projections = plan.get("Projections", [])
         group_keys = plan.get("Group Key", [])
-        
+
         mode = plan.get("Partial Mode", "")
-        
+
         # Format aggregate output
         if projections:
             output_expr = format_projections(projections)
@@ -110,24 +121,18 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
             output_expr = ", ".join(global_agg_expressions)
         else:
             output_expr = "aggregate values"
-        
+
         # Add Group by if available
         group_by = ""
         if group_keys:
             group_by = f" GROUP BY {', '.join(clean_expression(k) for k in group_keys)}"
 
         if mode == "Partial":
-            current_ops += (
-                f"{indent}|> AGGREGATE PARTIAL {output_expr}{group_by} -- Cost: {cost_display}\n"
-            )
+            current_ops += f"{indent}|> AGGREGATE PARTIAL {output_expr}{group_by} -- Cost: {cost_display}\n"
         elif mode == "Finalize":
-            current_ops += (
-                f"{indent}|> AGGREGATE FINALIZE {output_expr}{group_by} -- Cost: {cost_display}\n"
-            )
+            current_ops += f"{indent}|> AGGREGATE FINALIZE {output_expr}{group_by} -- Cost: {cost_display}\n"
         else:
-            current_ops += (
-                f"{indent}|> AGGREGATE {output_expr}{group_by}  -- Cost: {cost_display}\n"
-            )
+            current_ops += f"{indent}|> AGGREGATE {output_expr}{group_by}  -- Cost: {cost_display}\n"
 
     elif node_type == "Gather":
         current_ops += f"{indent}|> GATHER -- Cost: {cost_display}\n"
@@ -157,7 +162,7 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
     elif node_type == "Nested Loop":
         join_filter = plan.get("Join Filter", "")
         join_type = plan.get("Join Type", "Inner").upper()
-        
+
         join_prefix = ""
         if join_type == "INNER":
             join_prefix = ""
@@ -171,19 +176,19 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
             join_prefix = "SEMI "
         elif join_type == "ANTI":
             join_prefix = "ANTI "
-        
+
         if join_filter:
             join_filter = clean_expression(join_filter)
-            current_ops += (
-                f"{indent}|> {join_prefix}NESTED LOOP ON {join_filter} -- Cost: {cost_display}\n"
-            )
+            current_ops += f"{indent}|> {join_prefix}NESTED LOOP ON {join_filter} -- Cost: {cost_display}\n"
         else:
-            current_ops += f"{indent}|> {join_prefix}NESTED LOOP -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> {join_prefix}NESTED LOOP -- Cost: {cost_display}\n"
+            )
 
     elif node_type == "Merge Join":
         cond = clean_expression(plan.get("Merge Cond", ""))
         join_type = plan.get("Join Type", "Inner").upper()
-        
+
         join_prefix = ""
         if join_type == "INNER":
             join_prefix = ""  # INNER is default, no prefix needed
@@ -197,17 +202,18 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
             join_prefix = "SEMI "
         elif join_type == "ANTI":
             join_prefix = "ANTI "
-        
-        
+
         if cond:
             current_ops += f"{indent}|> {join_prefix}MERGE JOIN ON {cond} -- Cost: {cost_display}\n"
         else:
-            current_ops += f"{indent}|> {join_prefix}MERGE JOIN -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> {join_prefix}MERGE JOIN -- Cost: {cost_display}\n"
+            )
 
     elif node_type == "Hash Join":
         cond = clean_expression(plan.get("Hash Cond", ""))
         join_type = plan.get("Join Type", "Inner").upper()
-        
+
         join_prefix = ""
         if join_type == "INNER":
             join_prefix = ""  # INNER is default, no prefix needed
@@ -222,11 +228,14 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
         elif join_type == "ANTI":
             join_prefix = "ANTI "
 
-        
         if cond:
-            current_ops += f"{indent}|> {join_prefix}HASH JOIN ON {cond} -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> {join_prefix}HASH JOIN ON {cond} -- Cost: {cost_display}\n"
+            )
         else:
-            current_ops += f"{indent}|> {join_prefix}HASH JOIN -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> {join_prefix}HASH JOIN -- Cost: {cost_display}\n"
+            )
 
     elif node_type == "Materialize":
         current_ops += f"{indent}|> MATERIALIZE -- Cost: {cost_display}\n"
@@ -234,7 +243,9 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
     # Handle subplan/initplan
     if plan.get("Parent Relationship") in ["SubPlan", "InitPlan"]:
         subplan_name = plan.get("Subplan Name", "Unnamed Plan")
-        current_ops = f"{indent}|> {subplan_name} -- Cost: {cost_display}\n" + current_ops
+        current_ops = (
+            f"{indent}|> {subplan_name} -- Cost: {cost_display}\n" + current_ops
+        )
     # bottom-up build pipe syntax
     for child in children:
         if child:
@@ -242,7 +253,7 @@ def parse_plan(plan: Dict, depth: int = 0, max_depth: Optional[int] = None,
             if child_result:
                 result += child_result + "\n"
     result += current_ops
-    return result.rstrip() 
+    return result.rstrip()
 
 
 def clean_expression(expr) -> str:
@@ -260,36 +271,38 @@ def clean_expression(expr) -> str:
         )
     return str(expr)
 
+
 def get_aggregate_expressions(sql: str) -> List[str]:
     """
     Extract aggregate expressions from a SQL query using sqlglot.
-    
+
     Args:
         sql: The SQL query string
-    
+
     Returns:
         A list of aggregate expressions from the SQL query
     """
     try:
         # Parse the SQL query
         ast = parse_one(sql, dialect="postgres")
-        
+
         # Find the top-level SELECT
         selects = list(ast.find_all(exp.Select))
         if not selects:
             return []
-        
+
         # Get the expressions from the SELECT statement
         expressions = selects[0].expressions
         if not expressions:
             return []
-        
+
         # Convert the expressions to strings
         expr_strings = [str(expr) for expr in expressions]
         return expr_strings
     except Exception as e:
         print(f"Error parsing SQL: {e}")
         return []
+
 
 def format_projections(projections: List[str]) -> str:
     if not projections:
@@ -298,14 +311,16 @@ def format_projections(projections: List[str]) -> str:
     return ", ".join(clean_expression(p) for p in projections)
 
 
-def convert_qep_to_pipe_syntax(qep_plan: Dict[str, Any], agg_expressions: List[str] = None) -> str:
+def convert_qep_to_pipe_syntax(
+    qep_plan: Dict[str, Any], agg_expressions: List[str] = None
+) -> str:
     """
     Convert a Query Execution Plan to pipe syntax.
-    
+
     Args:
         qep_plan: The Query Execution Plan from preprocessing.preprocess()
                  This is already a Python dictionary, not a JSON string
-    
+
     Returns:
         A string representation of the plan in pipe syntax
     """
@@ -317,7 +332,7 @@ def convert_qep_to_pipe_syntax(qep_plan: Dict[str, Any], agg_expressions: List[s
     # Store aggregate expressions for use in parse_plan
     global global_agg_expressions
     global_agg_expressions = agg_expressions or []
-    # Second pass 
+    # Second pass
     result = parse_plan(qep_plan, plan_dict=plan_dict)
     result = result.replace(" : ->", " ->")
 
@@ -327,12 +342,12 @@ def convert_qep_to_pipe_syntax(qep_plan: Dict[str, Any], agg_expressions: List[s
 def main(preprocessed_plan: Dict[str, Any], sql: str = None) -> str:
     if not preprocessed_plan:
         return ""
-    
+
     # If SQL is provided, extract aggregate expressions
     agg_expressions = []
     if sql:
         agg_expressions = get_aggregate_expressions(sql)
-    
+
     # Pass aggregate expressions to convert_qep_to_pipe_syntax
     return convert_qep_to_pipe_syntax(preprocessed_plan, agg_expressions)
 
@@ -352,24 +367,26 @@ if __name__ == "__main__":
     # except Exception as e:
     #     print(f"Error in main: {e}")
     # print("***************")
-    
-    import os, json
-    from preprocessing import preprocess, Postgres
-    
+
+    import json
+    import os
+
+    from preprocessing import Postgres, preprocess
+
     print("Testing pipe syntax generation")
-    
+
     # test
     # sql = "SELECT * FROM customer WHERE c_custkey = 1"
     sql = ""
-    
+
     try:
         # Connect to PostgreSQL
         db = Postgres(
             host="localhost",
             user="postgres",
-            password=os.environ.get("POSTGRES_PASSWORD", "postgres")
+            password=os.environ.get("POSTGRES_PASSWORD", "postgres"),
         )
-        
+
         sql = """select
         l_returnflag,
         l_linestatus,
@@ -392,18 +409,14 @@ if __name__ == "__main__":
         l_returnflag,
         l_linestatus
         LIMIT 1;"""
-        
-            
+
         # Preprocess the SQL query
         qep_plan = preprocess(sql, db)
-        
+
         # Convert to pipe syntax
         print("\n[DEBUG] Pipe syntax output:")
         result = main(qep_plan, sql)
         print(result)
-        
-        
+
     except Exception as e:
         print(f"Error: {e}")
-
-
