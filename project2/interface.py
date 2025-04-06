@@ -93,14 +93,10 @@ class GUI:
 
         # Convert button
         self.convert_btn = ttk.Button(
-            main_frame, text="Convert", command=self._mock_convert_query
+            main_frame, text="Convert", command=self.convert_query
         )
         self.convert_btn.grid(row=2, column=0, pady=5)
-        # A Test button
-        self.test_btn = ttk.Button(
-            main_frame, text="Test Real Convert", command=self.convert_query
-        )
-        self.test_btn.grid(row=2, column=1, pady=5)
+
         # output frame
         results_frame = ttk.Frame(main_frame)
         results_frame.grid(row=3, column=0, columnspan=2, sticky=("wens"))
@@ -232,21 +228,6 @@ class GUI:
         except Exception as e:
             messagebox.showerror("Error", f"Conversion failed: {str(e)}")
 
-    def _mock_convert_query(self) -> None:
-        if self.query_text is None:
-            messagebox.showwarning("Warning", "Query text widget is not initialized")
-            return
-        query = self.query_text.get("1.0", tk.END).strip()
-        if not query:
-            messagebox.showwarning("Warning", "Please enter a SQL query")
-            return
-        mock_qep = self._generate_mock_qep(query)
-        if self.qep_text is None:
-            messagebox.showwarning("Warning", "QEP text widget is not initialized")
-            return
-        self.qep_text.delete("1.0", tk.END)
-        self.qep_text.insert("1.0", mock_qep)
-
     def _generate_qep(self, query: str) -> Union[Dict[str, Any], str]:
         try:
             if not self.db:
@@ -267,61 +248,6 @@ class GUI:
             messagebox.showerror("Error", f"Failed to generate QEP\n{str(e)}")
             return "None"
 
-    def _generate_mock_qep(self, query: str) -> str:
-        """fake qep"""
-        return """
-{
-  "Plan": {
-    "Node Type": "Limit",
-    "Startup Cost": 1000.00,
-    "Total Cost": 1010.00,
-    "Plan Rows": 10,
-    "Plan Width": 100,
-    "Plans": [
-      {
-        "Node Type": "Sort",
-        "Startup Cost": 900.00,
-        "Total Cost": 950.00,
-        "Sort Key": ["c.c_custkey"],
-        "Plans": [
-          {
-            "Node Type": "Hash Join",
-            "Join Type": "Inner",
-            "Startup Cost": 500.00,
-            "Total Cost": 800.00,
-            "Hash Cond": "(c.c_nationkey = n.n_nationkey)",
-            "Plans": [
-              {
-                "Node Type": "Seq Scan",
-                "Relation Name": "customer c",
-                "Alias": "c",
-                "Startup Cost": 0.00,
-                "Total Cost": 400.00,
-                "Filter": "c.c_acctbal > 1000"
-              },
-              {
-                "Node Type": "Hash",
-                "Startup Cost": 100.00,
-                "Total Cost": 100.00,
-                "Plans": [
-                  {
-                    "Node Type": "Seq Scan",
-                    "Relation Name": "nation n",
-                    "Alias": "n",
-                    "Startup Cost": 0.00,
-                    "Total Cost": 100.00
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
-}
-"""
-
     def _generate_pipe_syntax(self, qep: Any) -> str:
         try:
 
@@ -333,17 +259,6 @@ class GUI:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate pipe syntax: {str(e)}")
             return str(e)
-
-    def _generate_mock_pipe_syntax(self) -> List[Tuple[str, float]]:
-        """fake pipe syntax"""
-        return [
-            ("Scan(customer) | Filter(c_acctbal > 1000)", 400.00),
-            ("Scan(nation)", 100.00),
-            ("Hash(nation)", 100.00),
-            ("HashJoin(customer.c_nationkey = nation.n_nationkey)", 800.00),
-            ("Sort(c_custkey)", 950.00),
-            ("Limit(10)", 1010.00),
-        ]
 
 
 if __name__ == "__main__":
