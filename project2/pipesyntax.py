@@ -1,5 +1,4 @@
-import json
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 from sqlglot import exp, parse_one
 
@@ -37,7 +36,7 @@ def parse_plan(
     plan: Dict,
     depth: int = 0,
     max_depth: Optional[int] = None,
-    plan_dict: Dict[str, Dict] = None,
+    plan_dict: Dict[str, Dict] = {},
 ) -> str:
     if not plan:
         return ""
@@ -52,7 +51,7 @@ def parse_plan(
     total_cost = plan.get("Total Cost", "N/A")
     cost_display = f"{startup_cost} -> {total_cost}"
     # indent = "  " * (max_depth - depth)
-    indent = ""
+    indent = "  " * (max_depth - depth - 1 if max_depth - depth - 1 >= 0 else 0)
 
     # Skip Hash node
     # if node_type == "Hash":
@@ -312,7 +311,7 @@ def format_projections(projections: List[str]) -> str:
 
 
 def convert_qep_to_pipe_syntax(
-    qep_plan: Dict[str, Any], agg_expressions: List[str] = None
+    qep_plan: Dict[str, Any], agg_expressions: List[str] = []
 ) -> str:
     """
     Convert a Query Execution Plan to pipe syntax.
@@ -339,7 +338,7 @@ def convert_qep_to_pipe_syntax(
     return result
 
 
-def main(preprocessed_plan: Dict[str, Any], sql: str = None) -> str:
+def main(preprocessed_plan: Dict[str, Any], sql: str = "") -> str:
     if not preprocessed_plan:
         return ""
 

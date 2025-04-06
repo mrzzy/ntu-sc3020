@@ -2,7 +2,7 @@ import json
 import os
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, Union
 
 import psycopg
 from dotenv import load_dotenv
@@ -36,7 +36,7 @@ class GUI:
         """Initialize and run the GUI, but no function yet."""
         self.root = tk.Tk()
         self.root.title("SQL QEP to Pipe Syntax Converter")
-        self.root.geometry("1200x800")
+        self.root.geometry("1300x800")
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky="nsew")
         # Connection block
@@ -107,7 +107,7 @@ class GUI:
         )
         qep_frame.grid(row=0, column=0, sticky=("wens"), padx=5)
 
-        self.qep_text = tk.Text(qep_frame, height=15, width=70)
+        self.qep_text = tk.Text(qep_frame, height=15, width=75)
         self.qep_text.grid(row=0, column=0, sticky=("wens"))
         qep_scroll = ttk.Scrollbar(
             qep_frame, orient=tk.VERTICAL, command=self.qep_text.yview
@@ -119,7 +119,7 @@ class GUI:
         pipe_frame = ttk.LabelFrame(results_frame, text="Pipe Syntax", padding="5")
         pipe_frame.grid(row=0, column=1, sticky=("wens"), padx=5)
 
-        self.result_text = tk.Text(pipe_frame, height=15, width=70)
+        self.result_text = tk.Text(pipe_frame, height=15, width=100)
         self.result_text.grid(row=0, column=0, sticky=("wens"))
         result_scroll = ttk.Scrollbar(
             pipe_frame, orient=tk.VERTICAL, command=self.result_text.yview
