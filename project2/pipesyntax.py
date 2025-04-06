@@ -110,6 +110,7 @@ def parse_plan(plan, depth=0, max_depth=None):
     if plan.get("Parent Relationship") == "SubPlan":
         subplan = plan.get("Subplan Name", "Unnamed SubPlan")
         result += f"|> SUBPLAN {subplan} -- Cost: {cost_display}\n"
+        
     for child in children:
         if child:
             child_result = parse_plan(child, depth + 1)
