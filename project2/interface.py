@@ -6,9 +6,10 @@ from typing import Any, Dict, List, Tuple, Union
 
 import psycopg
 from dotenv import load_dotenv
+from pytest import param
 
 import pipesyntax
-import preprocessing
+from preprocessing import preprocess, Postgres
 
 load_dotenv()
 
@@ -29,6 +30,7 @@ class GUI:
         self.qep_text = None
         self.connect = None
         self.cur = None
+        self.db = None
 
     def run(self) -> None:
         """Initialize and run the GUI, but no function yet."""
@@ -185,6 +187,7 @@ class GUI:
                 self.connect.close()
             print("connecting")
             self.connect = psycopg.connect(**para)
+            self.db = para
             self.cur = self.connect.cursor()
             # try
             print("connected")
@@ -230,7 +233,6 @@ class GUI:
             messagebox.showerror("Error", f"Conversion failed: {str(e)}")
 
     def _mock_convert_query(self) -> None:
-        """fake output, not sure if the result is correct or not."""
         if self.query_text is None:
             messagebox.showwarning("Warning", "Query text widget is not initialized")
             return
@@ -238,32 +240,27 @@ class GUI:
         if not query:
             messagebox.showwarning("Warning", "Please enter a SQL query")
             return
-
-        mock_qep = self._generate_qep(query)
+        mock_qep = self._generate_mock_qep(query)
         if self.qep_text is None:
             messagebox.showwarning("Warning", "QEP text widget is not initialized")
             return
         self.qep_text.delete("1.0", tk.END)
-        self.qep_text.insert("1.0", json.dumps(mock_qep, indent=2))
-        mock_pipe_syntax = self._generate_mock_pipe_syntax()
-        if self.result_text is None:
-            messagebox.showwarning("Warning", "Result text widget is not initialized")
-            return
-        self.result_text.delete("1.0", tk.END)
-        for component, cost in mock_pipe_syntax:
-            self.result_text.insert(tk.END, f"{component}  // Cost: {cost:.2f}\n")
+        self.qep_text.insert("1.0", mock_qep)
 
     def _generate_qep(self, query: str) -> Union[Dict[str, Any], str]:
-        """Generate Query Execution Plan"""
         try:
-            explain_sql = f"EXPLAIN (FORMAT JSON) {query}"
-            if self.cur is None:
-                messagebox.showerror("Error", "Not connected to database")
-                return "None"
-            self.cur.execute(explain_sql)
-            qep_result = self.cur.fetchone()
-            if qep_result and qep_result[0]:
-                return qep_result[0]
+            if not self.db:
+                raise Exception("No database connection")
+            db = Postgres(
+                host= self.db["host"],
+                port= self.db["port"],
+                dbname = self.db["dbname"],
+                user= self.db["user"],
+                password= self.db["password"],
+            )
+            qep_result = preprocess(query, db)
+            if qep_result :
+                return qep_result
             else:
                 raise Exception("No QEP generated")
         except Exception as e:
@@ -326,17 +323,13 @@ class GUI:
 """
 
     def _generate_pipe_syntax(self, qep: Any) -> str:
-        """Generate Pipe Syntax from QEP"""
         try:
-            preprocess = preprocessing.main(qep)
-            if preprocess is None:
-                messagebox.showerror("Error", "Preprocessing failed")
-                preprocess = "Preprocessing failed \n"
+            
             pipe_syntax = pipesyntax.main(json.dumps(qep, indent=2))
             if pipe_syntax is None:
                 messagebox.showerror("Error", "Pipe syntax generation failed \n")
                 pipe_syntax = "Pipe syntax generation failed"
-            return f"The output of preprocess.main is: \n \n{preprocess}\nThe output of pipesyntax.main is: \n \n{pipe_syntax}"
+            return f"The output of pipesyntax.main is:\n\n{pipe_syntax}"
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate pipe syntax: {str(e)}")
             return str(e)
