@@ -4,6 +4,7 @@
 # Preprocessing Unit Tests
 #
 
+import os
 from pathlib import Path
 
 import pytest
@@ -20,8 +21,14 @@ from preprocessing import (
 
 @pytest.fixture
 def query_sqls() -> list[str]:
+    """Fixture of the TPC-H queries in order of ascending query id"""
     query_dir = Path(__file__).parent / "queries"
-    return [query_file.read_text() for query_file in query_dir.glob("*.sql")]
+
+    def get_query_id(query_path: Path):
+        return int(os.path.basename(query_path).split(".")[0])
+
+    query_files = sorted(query_dir.glob("*"), key=get_query_id)
+    return [query_file.read_text() for query_file in query_files]
 
 
 def test_postgres_explain(db: Postgres, query_sqls: list[str]):
@@ -35,8 +42,8 @@ def test_postgres_get_primary_key(db: Postgres):
 
 
 def test_postgres_enrich_projections(db: Postgres, query_sqls: list[str]):
-    # test: TPC-H 4th query 4.sql
-    sql = query_sqls[3]
+    # test: TPC-H 2th query 2.sql
+    sql = query_sqls[1]
     plan = db.explain(sql)
     plan = enrich(plan, [ProjectionEnricher(sql)])
 
@@ -80,8 +87,8 @@ def test_postgres_enrich_primary_key(db: Postgres, query_sqls: list[str]):
     assert len(pk_nodes) == 2
 
     assert len(pk_nodes) == 2
-    assert pk_nodes[0]["Primary Key"] == "l_orderkey"
-    assert pk_nodes[1]["Primary Key"] == "s_suppkey"
+    assert pk_nodes[0]["Primary Key"] == "o_orderkey"
+    assert pk_nodes[1]["Primary Key"] == "c_custkey"
 
 
 def test_preprocess(db: Postgres, query_sqls: list[str]):
