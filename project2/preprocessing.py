@@ -21,7 +21,7 @@ class Postgres:
         """Fetch the query plan of the given sql statement."""
         # fetch query plan by executing 'EXPLAIN'
         with self.connection.transaction():
-            cursor = self.connection.execute("EXPLAIN (FORMAT JSON)\n" + sql)  # type: ignore
+            cursor = self.connection.execute("""EXPLAIN (VERBOSE, FORMAT JSON)""" + sql)  # type: ignore
             result = cursor.fetchone()
         if result is None:
             raise RuntimeError("fetch of query plan of SQL returned no results.")
