@@ -262,7 +262,6 @@ if __name__ == "__main__":
     #     print(f"Error in main: {e}")
     # print("***************")
 
-    import json
     import os
 
 

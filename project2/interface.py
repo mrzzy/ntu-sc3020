@@ -6,7 +6,6 @@ from typing import Any, Dict, Union
 
 import psycopg
 from dotenv import load_dotenv
-from pytest import param
 
 import pipesyntax
 from preprocessing import Postgres, preprocess
