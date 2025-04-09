@@ -1,9 +1,12 @@
 from typing import Any, Dict, List, Optional
+
 from sqlglot import exp, parse_one
+
 from preprocessing import Postgres, preprocess
 
 # Global variable to store aggregate expressions
 global_agg_expressions = []
+
 
 def collect_plans(qep_node: Dict, plan_dict: Dict[str, Dict]) -> None:
 
@@ -61,7 +64,15 @@ def parse_plan(
         #     if child_result:
         #         child_results.append(child_result)
         # return "\n".join(child_results) if child_results else ""
-        return "\n".join(filter(None, [parse_plan(child, depth + 1, max_depth, plan_dict) for child in children]))
+        return "\n".join(
+            filter(
+                None,
+                [
+                    parse_plan(child, depth + 1, max_depth, plan_dict)
+                    for child in children
+                ],
+            )
+        )
 
     # Initialize result string
     result = ""
@@ -79,12 +90,20 @@ def parse_plan(
             current_ops += f"{indent}FROM {table} -- Cost: {cost_display}\n"
 
         # Handle WHERE
-        conditions = [clean_expression(plan.get(k)) for k in ["Filter", "Index Cond", "Recheck Cond"] if k in plan]
+        conditions = [
+            clean_expression(plan.get(k))
+            for k in ["Filter", "Index Cond", "Recheck Cond"]
+            if k in plan
+        ]
         if conditions:
-            current_ops += f"{indent}|> WHERE {' AND '.join(conditions)} -- Cost: {cost_display}\n"
+            current_ops += (
+                f"{indent}|> WHERE {' AND '.join(conditions)} -- Cost: {cost_display}\n"
+            )
         if node_type in ("Index Scan", "Index Only Scan") and "Primary Key" in plan:
-            current_ops += f"{indent}|> ORDER BY {plan['Primary Key']} -- Cost: {cost_display}\n"
-        
+            current_ops += (
+                f"{indent}|> ORDER BY {plan['Primary Key']} -- Cost: {cost_display}\n"
+            )
+
     elif "Filter" in plan:
         current_ops += f"{indent}|> WHERE {clean_expression(plan['Filter'])} -- Cost: {cost_display}\n"
 
@@ -93,11 +112,17 @@ def parse_plan(
         projections = plan.get("Projections", [])
         group_keys = plan.get("Group Key", [])
         output_expr = format_projections(projections or global_agg_expressions)
-        group_by = f" GROUP BY {', '.join(clean_expression(k) for k in group_keys)}" if group_keys else ""
+        group_by = (
+            f" GROUP BY {', '.join(clean_expression(k) for k in group_keys)}"
+            if group_keys
+            else ""
+        )
         mode = plan.get("Partial Mode", "")
         label = "AGGREGATE" + (f" {mode.upper()}" if mode else "")
-        current_ops += f"{indent}|> {label} {output_expr}{group_by} -- Cost: {cost_display}\n"
-        
+        current_ops += (
+            f"{indent}|> {label} {output_expr}{group_by} -- Cost: {cost_display}\n"
+        )
+
         # Format aggregate output
         if projections:
             output_expr = format_projections(projections)
@@ -110,7 +135,9 @@ def parse_plan(
         current_ops += f"{indent}|> GATHER -- Cost: {cost_display}\n"
 
     elif node_type == "Limit":
-        current_ops += f"{indent}|> LIMIT {plan.get('Plan Rows', 1)} -- Cost: {cost_display}\n"
+        current_ops += (
+            f"{indent}|> LIMIT {plan.get('Plan Rows', 1)} -- Cost: {cost_display}\n"
+        )
 
     elif node_type in ("Sort", "Incremental Sort"):
         keys = plan.get("Sort Key", [])
@@ -121,7 +148,7 @@ def parse_plan(
             current_ops += f"{indent}|> INCREMENTAL SORT (presorted: {', '.join(cleaned_pre)}) BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
         else:
             current_ops += f"{indent}|> ORDER BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
-        
+
     elif node_type in ("Nested Loop", "Merge Join", "Hash Join"):
         cond_key = {
             "Nested Loop": "Join Filter",
@@ -139,20 +166,28 @@ def parse_plan(
             "ANTI": "ANTI ",
         }
         prefix = join_map.get(join_type, "")
-        current_ops += f"{indent}|> {prefix}{node_type.upper()}" + (f" ON {cond}" if cond else "") + f" -- Cost: {cost_display}\n"
+        current_ops += (
+            f"{indent}|> {prefix}{node_type.upper()}"
+            + (f" ON {cond}" if cond else "")
+            + f" -- Cost: {cost_display}\n"
+        )
 
     elif node_type == "Materialize":
         current_ops += f"{indent}|> MATERIALIZE -- Cost: {cost_display}\n"
 
     # Handle subplan/initplan
     if plan.get("Parent Relationship") in ["SubPlan", "InitPlan"]:
-       current_ops = f"{indent}|> {plan.get('Subplan Name', 'Unnamed Plan')} -- Cost: {cost_display}\n" + current_ops
-       
+        current_ops = (
+            f"{indent}|> {plan.get('Subplan Name', 'Unnamed Plan')} -- Cost: {cost_display}\n"
+            + current_ops
+        )
+
     for child in children:
         result += parse_plan(child, depth + 1, max_depth, plan_dict) + "\n"
     result += current_ops
-    
+
     return result.rstrip()
+
 
 def clean_expression(expr) -> str:
     if not expr:  # Guard against None
@@ -195,7 +230,7 @@ def get_aggregate_expressions(sql: str) -> List[str]:
             return []
 
         return [str(expr) for expr in expressions]
-    
+
     except Exception as e:
         print(f"Error parsing SQL: {e}")
         return []
@@ -263,7 +298,6 @@ if __name__ == "__main__":
     # print("***************")
 
     import os
-
 
     print("Testing pipe syntax generation")
 
