@@ -21,6 +21,9 @@ class Postgres:
         """Fetch the query plan of the given sql statement."""
         # fetch query plan by executing 'EXPLAIN'
         with self.connection.transaction():
+            # disable parallel query planning to simplify plan retrieved
+            self.connection.execute("SET max_parallel_workers_per_gather = 0;")
+            # fetch verbose plan to include projected columns
             cursor = self.connection.execute("""EXPLAIN (VERBOSE, FORMAT JSON)""" + sql)  # type: ignore
             result = cursor.fetchone()
         if result is None:
