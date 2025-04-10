@@ -85,6 +85,27 @@ def test_pipesyntax_generate_aggregate():
     assert chunk.cost == pytest.approx(9895.42)
 
 
+def test_pipesyntax_generate_orderby():
+    pipesyntax = PipeSyntax()
+    chunk = pipesyntax.gen_orderby(
+        {
+            "Node Type": "Sort",
+            "Startup Cost": 21208.45,
+            "Total Cost": 21583.45,
+            "Plan Rows": 150000,
+            "Plan Width": 19,
+            "Plans": [],
+            "Output": ["c_name"],
+            "Sort Key": ["customer.c_name", "customer.c_address DESC"],
+        }
+    )
+    assert chunk.statements == [
+        "ORDER BY customer.c_name, customer.c_address DESC",
+        "SELECT c_name",
+    ]
+    assert chunk.cost == pytest.approx(21583.45)
+
+
 def test_generate(query_plans):
     """Test pipesyntax generation from query plans."""
     for plan in query_plans:

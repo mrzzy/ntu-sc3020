@@ -78,6 +78,22 @@ class PipeSyntax:
             node["Total Cost"],
         )
 
+    def gen_orderby(self, node: dict) -> Chunk:
+        """Generate SQL statements from given orderby QEP node.
+
+        Args:
+            node: Preprocessed orderby QEP node.
+        Returns:
+            Generated SQL Chunk with cost.
+        """
+        return Chunk(
+            [
+                f"ORDER BY {', '.join(node['Sort Key'])}",
+                self.gen_projection(node),
+            ],
+            node["Total Cost"],
+        )
+
     def generate(self, node: dict) -> list[str]:
         """Generate pipesyntax SQL statements from given preprocessed QEP node.
         Args:
@@ -90,6 +106,8 @@ class PipeSyntax:
             return self.gen_scan(node)
         if node["Node Type"] in ["HashAggregate", "Aggregate", "Group"]:
             return self.gen_aggregate(node)
+        if "Sort Key" in node:
+            return self.gen_orderby(node)
 
 
 def generate(plan: dict) -> str:
