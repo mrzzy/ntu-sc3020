@@ -94,6 +94,19 @@ class PipeSyntax:
             node["Total Cost"],
         )
 
+    def gen_limit(self, node: dict) -> Chunk:
+        """Generate SQL statements from given limit QEP node.
+
+        Args:
+            node: Preprocessed limit QEP node.
+        Returns:
+            Generated SQL Chunk with cost.
+        """
+        return Chunk(
+            [f"LIMIT {node['Plan Rows']}", self.gen_projection(node)],
+            node["Total Cost"],
+        )
+
     def generate(self, node: dict) -> list[str]:
         """Generate pipesyntax SQL statements from given preprocessed QEP node.
         Args:

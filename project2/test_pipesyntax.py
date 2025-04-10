@@ -106,6 +106,32 @@ def test_pipesyntax_generate_orderby():
     assert chunk.cost == pytest.approx(21583.45)
 
 
+def test_pipesyntax_generate_limit():
+    pipesyntax = PipeSyntax()
+    chunk = pipesyntax.gen_limit(
+        {
+            "Node Type": "Limit",
+            "Parallel Aware": False,
+            "Async Capable": False,
+            "Startup Cost": 63423.31,
+            "Total Cost": 63423.32,
+            "Plan Rows": 1000,
+            "Plan Width": 270,
+            "Output": [
+                "supplier.s_acctbal",
+                "supplier.s_name",
+                "nation.n_name",
+            ],
+            "Plans": [],
+        }
+    )
+    assert chunk.statements == [
+        "LIMIT 1000",
+        "SELECT supplier.s_acctbal, supplier.s_name, nation.n_name",
+    ]
+    assert chunk.cost == pytest.approx(63423.31)
+
+
 def test_generate(query_plans):
     """Test pipesyntax generation from query plans."""
     for plan in query_plans:
