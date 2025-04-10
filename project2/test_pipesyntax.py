@@ -9,6 +9,30 @@ import pytest
 from pipesyntax import PipeSyntax, generate
 from preprocessing import Postgres, preprocess
 
+SCAN_QEP = {
+    "Node Type": "Index Only Scan",
+    "Parent Relationship": "Outer",
+    "Parallel Aware": False,
+    "Async Capable": False,
+    "Scan Direction": "Forward",
+    "Index Name": "customer_pkey",
+    "Relation Name": "customer",
+    "Schema": "public",
+    "Alias": "customer",
+    "Startup Cost": 0.42,
+    "Total Cost": 3937.42,
+    "Plan Rows": 150000,
+    "Plan Width": 4,
+    "Output": ["customer.c_custkey"],
+    "Index Key": ["c_custkey"],
+}
+
+SCAN_SQL = """FROM `public`.`customer` AS customer
+|> SELECT customer.c_custkey
+|> ORDER BY c_custkey ASC
+-- cost: 3937.42
+"""
+
 
 @pytest.fixture
 def query_plans(db: Postgres, query_sqls: list[str]):
@@ -34,32 +58,7 @@ def test_pipesyntax_generate_projection():
 
 def test_pipesyntax_generate_scan():
     pipesyntax = PipeSyntax()
-    assert (
-        pipesyntax.gen_scan(
-            {
-                "Node Type": "Index Only Scan",
-                "Parent Relationship": "Outer",
-                "Parallel Aware": False,
-                "Async Capable": False,
-                "Scan Direction": "Forward",
-                "Index Name": "customer_pkey",
-                "Relation Name": "customer",
-                "Schema": "public",
-                "Alias": "customer",
-                "Startup Cost": 0.42,
-                "Total Cost": 3937.42,
-                "Plan Rows": 150000,
-                "Plan Width": 4,
-                "Output": ["customer.c_custkey"],
-                "Index Key": ["c_custkey"],
-            }
-        )
-        == """FROM `public`.`customer` AS customer
-|> SELECT customer.c_custkey
-|> ORDER BY c_custkey ASC
--- cost: 3937.42
-"""
-    )
+    assert pipesyntax.gen_scan(SCAN_QEP) == SCAN_SQL
 
 
 def test_pipesyntax_generate_aggregate():
@@ -76,12 +75,13 @@ def test_pipesyntax_generate_aggregate():
                 "Total Cost": 9895.42,
                 "Plan Rows": 150000,
                 "Plan Width": 36,
-                "Plans": [],
+                "Plans": [SCAN_QEP],
                 "Output": ["c_custkey", "MIN(c_name)"],
                 "Group Key": ["customer.c_custkey"],
             }
         )
-        == """AGGREGATE c_custkey, MIN(c_name) GROUP BY customer.c_custkey
+        == SCAN_SQL
+        + """|> AGGREGATE c_custkey, MIN(c_name) GROUP BY customer.c_custkey
 -- cost: 9895.42
 """
     )
@@ -97,12 +97,13 @@ def test_pipesyntax_generate_orderby():
                 "Total Cost": 21583.45,
                 "Plan Rows": 150000,
                 "Plan Width": 19,
-                "Plans": [],
+                "Plans": [SCAN_QEP],
                 "Output": ["c_name"],
                 "Sort Key": ["customer.c_name", "customer.c_address DESC"],
             }
         )
-        == """ORDER BY customer.c_name, customer.c_address DESC
+        == SCAN_SQL
+        + """|> ORDER BY customer.c_name, customer.c_address DESC
 |> SELECT c_name
 -- cost: 21583.45
 """
@@ -126,10 +127,11 @@ def test_pipesyntax_generate_limit():
                     "supplier.s_name",
                     "nation.n_name",
                 ],
-                "Plans": [],
+                "Plans": [SCAN_QEP],
             }
         )
-        == """LIMIT 1000
+        == SCAN_SQL
+        + """|> LIMIT 1000
 |> SELECT supplier.s_acctbal, supplier.s_name, nation.n_name
 -- cost: 63423.32
 """
