@@ -5,7 +5,17 @@
 #
 
 
+from dataclasses import dataclass
+
 from preprocessing import apply
+
+
+@dataclass
+class Chunk:
+    """Chunk of pipeline SQL statements with associated cost."""
+
+    statements: list[str]
+    cost: float = 0
 
 
 class PipeSyntax:
@@ -25,13 +35,20 @@ class PipeSyntax:
         columns = [self.resolve_subplan(c) for c in node["Output"]]
         return f"SELECT {', '.join(columns)}"
 
-    def gen_scan(self, node: dict) -> list[str]:
-        """Generate SQL statements from given scan QEP node."""
+    def gen_scan(self, node: dict) -> Chunk:
+        """Generate SQL statements from given scan QEP node.
+
+        Args:
+            node: Preprocessed scan QEP node.
+        Returns:
+            Generated SQL Chunk with cost.
+        """
+
         if node["Node Type"] == "Bitmap Index Scan":
             # bitmap index scans only reduces rows for a bitmap heap scan
             # which will recheck the filter condition on actual rows
             # we can safely ignore when generating functionally equivalent pipeline sql
-            return []
+            return Chunk([], 0)
 
         statements = [
             f"FROM `{node['Schema']}`.`{node['Relation Name']}` AS {node['Alias']}",
@@ -43,7 +60,23 @@ class PipeSyntax:
             # reflect this by adding an ORDER BY
             direction = "ASC" if node["Scan Direction"] == "Forward" else "DESC"
             statements.append(f"ORDER BY {', '.join(node['Index Key'])} {direction}")
-        return statements
+        return Chunk(statements, node["Total Cost"])
+
+    def gen_aggregate(self, node: dict) -> Chunk:
+        """Generate SQL statements from given aggregate QEP node.
+
+        Args:
+            node: Preprocessed aggregate QEP node.
+        Returns:
+            Generated SQL Chunk with cost.
+        """
+        grouping = (
+            f" GROUP BY {', '.join(node['Group Key'])}" if node["Group Key"] else ""
+        )
+        return Chunk(
+            [f"AGGREGATE {', '.join(node['Output'])}{grouping}"],
+            node["Total Cost"],
+        )
 
     def generate(self, node: dict) -> list[str]:
         """Generate pipesyntax SQL statements from given preprocessed QEP node.
@@ -55,6 +88,8 @@ class PipeSyntax:
 
         if "Relation Name" in node:
             return self.gen_scan(node)
+        if node["Node Type"] in ["HashAggregate", "Aggregate", "Group"]:
+            return self.gen_aggregate(node)
 
 
 def generate(plan: dict) -> str:
