@@ -48,13 +48,25 @@ def append(in_sql: str, next_sql: str):
     return in_sql + "|> " + next_sql
 
 
+def indent(sql: str, indent: int = 2) -> str:
+    """Indent SQL statement with given indent.
+
+    Args:
+        sql: SQL statement to reindent.
+        indent: Indent level.
+    Returns:
+        Indented SQL statement.
+    """
+    return "\n".join(" " * indent + line for line in sql.splitlines())
+
+
 class PipeSyntax:
     """Pipesyntax SQL Generator generates SQL from QEP."""
 
     def __init__(self):
         self.subplans = {}
 
-    def resolve_subplan(self, expr: str) -> str:
+    def resolve(self, expr: str) -> str:
         """Resolve subplan references in the given expression."""
         # TODO: resolve subplan references
         return expr
@@ -62,7 +74,7 @@ class PipeSyntax:
     def gen_projection(self, node: dict) -> str:
         """Generate projection as SELECT statement from QEP node."""
         # resolve subplan references in projected columns
-        columns = [self.resolve_subplan(c) for c in node["Output"]]
+        columns = [self.resolve(c) for c in node["Output"]]
         return f"SELECT {', '.join(columns)}"
 
     def gen_scan(self, node: dict) -> str:
@@ -81,7 +93,7 @@ class PipeSyntax:
             return ""
 
         # recursively generate sql in nested plans
-        in_sql = self.gen_nested(node)
+        in_sql = "".join(self.gen_nested(node))
 
         # generate statements for scan
         schema = f"`{node['Schema']}`." if "Schema" in node else ""
@@ -106,7 +118,7 @@ class PipeSyntax:
             Generated SQL statements with cost.
         """
         # recursively generate sql in nested plans
-        in_sql = self.gen_nested(node)
+        in_sql = "".join(self.gen_nested(node))
 
         grouping = (
             f" GROUP BY {', '.join(node['Group Key'])}" if "Group Key" in node else ""
@@ -128,7 +140,7 @@ class PipeSyntax:
             Generated SQL statements with cost.
         """
         # recursively generate sql in nested plans
-        in_sql = self.gen_nested(node)
+        in_sql = "".join(self.gen_nested(node))
         return append(
             in_sql,
             gen_chunk(
@@ -149,7 +161,7 @@ class PipeSyntax:
             Generated SQL statements with cost.
         """
         # recursively generate sql in nested plans
-        in_sql = self.gen_nested(node)
+        in_sql = "".join(self.gen_nested(node))
 
         return append(
             in_sql,
@@ -158,6 +170,39 @@ class PipeSyntax:
                 node["Total Cost"],
             ),
         )
+
+    def gen_join(self, node: dict) -> str:
+        """Generate SQL statements from given join QEP node.
+
+        Args:
+            node: Preprocessed join QEP node.
+        Returns:
+            Generated SQL statements with cost.
+        """
+
+        # recursively generate sql in nested plans
+        operands = self.gen_nested(node)
+        if len(operands) < 2:
+            raise ValueError(f"Expected >= 2 operands, got: {len(operands)}")
+
+        # generate join statement
+        rhs_sql = operands.pop()
+        lhs_sql = operands.pop()
+        in_sql = "".join(operands)
+
+        alias = lambda n: f" AS `{n['Alias']}`" if "Alias" in n else ""
+        lhs_alias = alias(node["Plans"][-2])
+        rhs_alias = alias(node["Plans"][-1])
+
+        join_on = f" ON {self.resolve(node['Join On'])}" if "Join On" in node else ""
+
+        join_sql = f"""{in_sql}(
+{indent(lhs_sql)}
+){lhs_alias} {node['Join Type'].upper()} JOIN (
+{indent(rhs_sql)}
+){rhs_alias}{join_on}"""
+
+        return gen_chunk([join_sql, self.gen_projection(node)], node["Total Cost"])
 
     def generate(self, node: dict) -> str:
         """Generate pipesyntax SQL statements from given preprocessed QEP node.
@@ -173,22 +218,26 @@ class PipeSyntax:
             return self.gen_aggregate(node)
         if "Sort Key" in node:
             return self.gen_orderby(node)
+        if "Join Type" in node:
+            return self.gen_join(node)
+        if node["Node Type"] == "Limit":
+            return self.gen_limit(node)
 
         # unknown qep node: ignore node and generate from nested qep nodes
         log.warning(f"Ignoring node: {node['Node Type']}")
-        return self.gen_nested(node)
+        return "".join(self.gen_nested(node))
 
-    def gen_nested(self, node: dict) -> str:
+    def gen_nested(self, node: dict) -> list[str]:
         """Generate SQL statements from nested plans in gven QEP node.
         Args:
             node: Preprocessed QEP node.
         Returns:
-            Combined Generated SQL statements with cost
+            List of Generated SQL statements.
         """
         if "Plans" not in node:
-            return ""
+            return []
 
-        return "".join(self.generate(plan) for plan in node["Plans"])
+        return [self.generate(plan) for plan in node["Plans"]]
 
 
 def generate(plan: dict) -> str:

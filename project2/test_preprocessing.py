@@ -16,11 +16,13 @@ from preprocessing import (
     CTETransformer,
     DialectTransformer,
     IndexKeyTransformer,
+    JoinKeyTransformer,
     Postgres,
     SubplanNameTransformer,
     apply,
     correct_sql_arrays,
     preprocess,
+    pushup_aliases,
     transform,
 )
 
@@ -96,7 +98,7 @@ def test_index_key_transform(db: Postgres, query_sqls: list[str]):
     ]
 
 
-def test_cte_name_transform(db: Postgres, query_sqls: list[str]):
+def test_cte_transform(db: Postgres, query_sqls: list[str]):
     # test: TPC-H 15th query 15.sql
     plan = db.explain(query_sqls[15 - 1])
     plan = transform(plan, [CTETransformer()])
@@ -112,6 +114,24 @@ def test_cte_name_transform(db: Postgres, query_sqls: list[str]):
 
     assert len(nodes) == 2
     assert all(n["Relation Name"] == n["CTE Name"] for n in nodes)
+
+
+def test_join_key_transform(db: Postgres, query_sqls: list[str]):
+    # test: TPC-H 15th query 15.sql
+    plan = db.explain(query_sqls[15 - 1])
+    plan = transform(plan, [JoinKeyTransformer()])
+
+    join_keys = []
+
+    def collect_join(qep_node: dict, depth: int, subplan: str):
+        if "Join On" in qep_node:
+            join_keys.append(qep_node["Join On"])
+        return qep_node
+
+    apply(plan, collect_join)
+
+    assert len(join_keys) == 1
+    assert join_keys[0] == "(supplier.s_suppkey = revenue0.supplier_no)"
 
 
 def test_subplan_name_transform(db: Postgres, query_sqls: list[str]):
@@ -163,6 +183,22 @@ def test_dialect_transform(db: Postgres, query_sqls: list[str]):
         exprs[45]
         == "((part.p_brand <> CAST('Brand#53' AS STRING)) AND (NOT CAST((part.p_type) AS STRING) LIKE CAST('SMALL POLISHED%' AS STRING)) AND (part.p_size = ANY([CAST(16 AS INT64), CAST(18 AS INT64), CAST(47 AS INT64), CAST(11 AS INT64), CAST(1 AS INT64), CAST(42 AS INT64), CAST(10 AS INT64), CAST(27 AS INT64)])))"
     )
+
+
+def test_pushup_alias(db: Postgres, query_sqls: list[str]):
+    plan = pushup_aliases(
+        {
+            "Plans": [
+                {
+                    "Alias": "a",
+                    "Plans": [{"Alias": "b"}],
+                }
+            ]
+        }
+    )
+
+    assert plan["Alias"] == "a"
+    assert plan["Plans"][0]["Alias"] == "a"
 
 
 def test_preprocess(db: Postgres, query_sqls: list[str]):

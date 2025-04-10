@@ -6,7 +6,7 @@
 
 import re
 from abc import ABC, abstractmethod
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional
 
 import psycopg
 import sqlglot
@@ -189,6 +189,19 @@ class CTETransformer(Transformer):
         return qep_node
 
 
+class JoinKeyTransformer(Transformer):
+    """QEP node transformer that adds 'Join On' join condition for all join nodes"""
+
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        if "Join Type" in qep_node:
+            for key in EXPR_SINGLE_KEYS:
+                if key in qep_node:
+                    # add join condition to QEP node
+                    qep_node["Join On"] = qep_node[key]
+                    break
+        return qep_node
+
+
 class SubplanNameTransformer(Transformer):
     """QEP node transformer that conforms Subplan naming."""
 
@@ -268,6 +281,29 @@ def transform(plan: dict, transformers: Iterable[Transformer]) -> dict:
     return apply(plan, apply_all)
 
 
+def pushup_aliases(plan: dict) -> dict:
+    """Push up aliases in the QEP plan from child to parent.
+    Only push up aliases if the parent only has one child plan.
+    """
+
+    def pushup(plan: dict) -> Optional[str]:
+        if "Plans" in plan:
+            # pushup child aliases
+            results = [pushup(child) for child in plan["Plans"]]
+            aliases = [alias for alias in results if alias is not None]
+            # only pushup alias from child if parent does not have one
+            # and the parent has only 1 child with alias
+            if "Alias" not in plan and len(aliases) == 1:
+                plan["Alias"] = aliases[0]
+
+        if "Alias" in plan:
+            return plan["Alias"]
+        return None
+
+    pushup(plan)
+    return plan
+
+
 def preprocess(sql: str, db: Postgres) -> dict:
     """Parses, preprocess given SQL into transformed QEP plan using the given Postgres DB."""
     plan = db.explain(sql)
@@ -277,8 +313,10 @@ def preprocess(sql: str, db: Postgres) -> dict:
         [
             SubplanNameTransformer(),
             CTETransformer(),
+            JoinKeyTransformer(),
             IndexKeyTransformer(db),
             DialectTransformer(),
         ],
     )
+    plan = pushup_aliases(plan)
     return plan

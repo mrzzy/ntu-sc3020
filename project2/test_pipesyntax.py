@@ -7,7 +7,7 @@
 import pytest
 
 from pipesyntax import PipeSyntax, generate
-from preprocessing import Postgres, preprocess
+from preprocessing import Postgres, preprocess, pushup_aliases
 
 SCAN_QEP = {
     "Node Type": "Index Only Scan",
@@ -138,7 +138,97 @@ def test_pipesyntax_generate_limit():
     )
 
 
+def test_pipesyntax_generate_join():
+    pipesyntax = PipeSyntax()
+
+    assert (
+        (
+            pipesyntax.gen_join(
+                {
+                    "Node Type": "Hash Join",
+                    "Parallel Aware": False,
+                    "Async Capable": False,
+                    "Join Type": "Inner",
+                    "Startup Cost": 5812.42,
+                    "Total Cost": 11442.18,
+                    "Plan Rows": 150000,
+                    "Plan Width": 19,
+                    "Output": ["c1.c_name"],
+                    "Inner Unique": True,
+                    "Join On": "(c1.c_custkey = c2.c_custkey)",
+                    "Plans": [
+                        {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": False,
+                            "Async Capable": False,
+                            "Relation Name": "customer",
+                            "Schema": "public",
+                            "Alias": "c1",
+                            "Startup Cost": 0.00,
+                            "Total Cost": 5236.00,
+                            "Plan Rows": 150000,
+                            "Plan Width": 23,
+                            "Output": [
+                                "c1.c_custkey",
+                                "c1.c_name",
+                            ],
+                        },
+                        {
+                            "Node Type": "Hash",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": False,
+                            "Async Capable": False,
+                            "Startup Cost": 3937.42,
+                            "Total Cost": 3937.42,
+                            "Plan Rows": 150000,
+                            "Plan Width": 4,
+                            "Alias": "c2",
+                            "Output": ["c2.c_custkey"],
+                            "Plans": [
+                                {
+                                    "Node Type": "Index Only Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": False,
+                                    "Async Capable": False,
+                                    "Scan Direction": "Forward",
+                                    "Index Name": "customer_pkey",
+                                    "Index Key": ["c_custkey"],
+                                    "Relation Name": "customer",
+                                    "Schema": "public",
+                                    "Alias": "c2",
+                                    "Startup Cost": 0.42,
+                                    "Total Cost": 3937.42,
+                                    "Plan Rows": 150000,
+                                    "Plan Width": 4,
+                                    "Output": ["c2.c_custkey"],
+                                }
+                            ],
+                        },
+                    ],
+                }
+            )
+        )
+        == """(
+  FROM `public`.`customer` AS c1
+  |> SELECT c1.c_custkey, c1.c_name
+  -- cost: 5236.0
+) AS `c1` INNER JOIN (
+  FROM `public`.`customer` AS c2
+  |> SELECT c2.c_custkey
+  |> ORDER BY c_custkey ASC
+  -- cost: 3937.42
+) AS `c2` ON (c1.c_custkey = c2.c_custkey)
+|> SELECT c1.c_name
+-- cost: 11442.18
+"""
+    )
+
+
 def test_generate(query_plans):
     """Test pipesyntax generation from query plans."""
-    for plan in query_plans:
-        generate(plan)
+    for i, plan in enumerate(query_plans):
+        import json
+
+        with open(f"plans/{i}.json", "w") as f:
+            json.dump(generate(plan), f)
