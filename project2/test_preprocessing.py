@@ -10,10 +10,9 @@ from pathlib import Path
 import pytest
 
 from preprocessing import (
+    IndexKeyTransformer,
     Postgres,
-    PrimaryKeyEnricher,
-    ProjectionEnricher,
-    enrich,
+    apply,
     preprocess,
     transform,
 )
@@ -37,58 +36,41 @@ def test_postgres_explain(db: Postgres, query_sqls: list[str]):
         db.explain(sql)
 
 
-def test_postgres_get_primary_key(db: Postgres):
-    assert db.get_primary_key("customer") == "c_custkey"
+def test_postgres_get_index_key(db: Postgres):
+    assert db.get_index_key("idx_lineitem_part_supp") == ["l_partkey", "l_suppkey"]
 
 
-def test_postgres_enrich_projections(db: Postgres, query_sqls: list[str]):
-    # test: TPC-H 2th query 2.sql
-    sql = query_sqls[1]
-    plan = db.explain(sql)
-    plan = enrich(plan, [ProjectionEnricher(sql)])
+def test_postgres_transform_index_key(db: Postgres, query_sqls: list[str]):
+    # test: TPC-H 8th query 8.sql
+    plan = db.explain(query_sqls[8 - 1])
+    plan = transform(plan, [IndexKeyTransformer(db)])
 
-    proj_nodes = []
+    nodes = []
 
-    def collect_proj(qep_node: dict, depth: int):
-        if "Projections" in qep_node:
-            proj_nodes.append(qep_node)
+    def collect_key(qep_node: dict, depth: int):
+        if "Index Key" in qep_node:
+            nodes.append(qep_node)
         return qep_node
 
-    transform(plan, collect_proj)
+    apply(plan, collect_key)
 
-    assert len(proj_nodes) == 2
-    assert proj_nodes[0]["Projections"] == [
-        "s_acctbal",
-        "s_name",
-        "n_name",
-        "p_partkey",
-        "p_mfgr",
-        "s_address",
-        "s_phone",
-        "s_comment",
+    assert len(nodes) == 4
+    keys = [n["Index Key"] for n in nodes]
+    assert keys == [
+        [
+            "l_partkey",
+            "l_suppkey",
+        ],
+        [
+            "o_orderkey",
+        ],
+        [
+            "c_nationkey",
+        ],
+        [
+            "n_nationkey",
+        ],
     ]
-    assert proj_nodes[1]["Projections"] == ["MIN(ps_supplycost)"]
-
-
-def test_postgres_enrich_primary_key(db: Postgres, query_sqls: list[str]):
-    # test: TPC-H 13th query 13.sql
-    plan = db.explain(query_sqls[12])
-    plan = enrich(plan, [PrimaryKeyEnricher(db)])
-
-    pk_nodes = []
-
-    def collect_pk(qep_node: dict, depth: int):
-        if "Primary Key" in qep_node:
-            pk_nodes.append(qep_node)
-        return qep_node
-
-    transform(plan, collect_pk)
-
-    assert len(pk_nodes) == 2
-
-    assert len(pk_nodes) == 2
-    assert pk_nodes[0]["Primary Key"] == "o_orderkey"
-    assert pk_nodes[1]["Primary Key"] == "c_custkey"
 
 
 def test_preprocess(db: Postgres, query_sqls: list[str]):

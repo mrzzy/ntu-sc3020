@@ -30,83 +30,67 @@ class Postgres:
             raise RuntimeError("fetch of query plan of SQL returned no results.")
         return result[0][0]["Plan"]
 
-    def get_primary_key(self, table: str, schema: str = "public") -> str:
-        """Get the primary key of the given table / relation in the given schema."""
+    def get_index_key(self, index: str, schema: str = "public") -> list[str]:
+        """Get the key columns of the given index / relation in the given schema.
+
+        Args:
+            index (str): Index name
+            schema (str): Schema name
+
+        Returns:
+            list[str]: List of index key column names
+        """
         # query primary key from information schema
         with self.connection.transaction():
             cursor = self.connection.execute(
                 """
 SELECT
-    kc.table_schema,
-    kc.table_name,
-    kc.column_name
+    a.attname
 FROM
-    information_schema.table_constraints tc
+    pg_index ix
 JOIN
-    information_schema.key_column_usage kc
-    ON tc.constraint_name = kc.constraint_name
-    AND tc.table_schema = kc.table_schema
+    pg_class i ON i.oid = ix.indexrelid
+JOIN
+    pg_attribute a ON a.attrelid = ix.indrelid
+                 AND a.attnum = ANY(ix.indkey)
+JOIN
+    pg_namespace n ON n.oid = i.relnamespace
 WHERE
-    tc.constraint_type = 'PRIMARY KEY'
-    AND kc.table_name = %s
-    AND kc.table_schema = %s
-    """,
-                (table, schema),
+    i.relname = %s
+    AND n.nspname = %s;
+        """,
+                (index, schema),
             )
-            result = cursor.fetchone()
+            result = cursor.fetchall()
         if result is None:
-            raise RuntimeError("fetch of query plan of SQL returned no results.")
+            raise RuntimeError("Fetch of index key columns returned no results.")
 
-        # result: (schema, table, primary key)
-        return result[2]
+        return [r[0] for r in result]
 
 
-class Enricher(ABC):
-    """QEP node enricher that takes as input a QEP node, enriches it and returns it"""
+class Transformer(ABC):
+    """QEP node transformer that takes as input a QEP node, transforms it and returns it"""
 
     @abstractmethod
-    def enrich(self, qep_node: dict, depth: int) -> dict:
-        """Enrich & return the given QEP node that given depth (root = 0 depth)."""
+    def transform(self, qep_node: dict, depth: int) -> dict:
+        """Transform & return the given QEP node that given depth (root = 0 depth)."""
 
 
-class ProjectionEnricher(Enricher):
-    """QEP node enricher that adds 'Projections' for SELECT nodes from SQL query."""
-
-    def __init__(self, sql: str):
-        ast = parse_one(sql, dialect="postgres")
-        self.selects = ast.find_all(exp.Select)
-
-    def enrich(self, qep_node: dict, depth: int) -> dict:
-        # match plan nodes that are select statements using heurstics:
-        # - top-level nodes are top-level select statements
-        # - init plan & subplans are nested select statements
-        if depth == 0 or qep_node.get("Parent Relationship", "") in [
-            "InitPlan",
-            "SubPlan",
-        ]:
-            try:
-                select = next(self.selects)
-            except StopIteration:
-                raise RuntimeError("QEP Plan node & Select AST count mismatch")
-            qep_node["Projections"] = [str(c) for c in select.expressions]
-        return qep_node
-
-
-class PrimaryKeyEnricher(Enricher):
-    """QEP node enricher that adds 'Primary Key' for Table / Relation nodes"""
+class IndexKeyTransformer(Transformer):
+    """QEP node transformer that adds index key columns for index nodes"""
 
     def __init__(self, db: Postgres):
         self.db = db
 
-    def enrich(self, qep_node: dict, depth: int) -> dict:
-        relation = "Relation Name"
+    def transform(self, qep_node: dict, depth: int) -> dict:
+        relation = "Index Name"
         if relation in qep_node:
-            qep_node["Primary Key"] = self.db.get_primary_key(qep_node[relation])
+            qep_node["Index Key"] = self.db.get_index_key(qep_node[relation])
         return qep_node
 
 
-def transform(plan: dict, fn: Callable[[dict, int], dict]) -> dict:
-    """Transform the given QEP using the given transform fn.
+def apply(plan: dict, transform: Callable[[dict, int], dict]) -> dict:
+    """Apply the given transform fn on the given QEP.
     Traverses the given QEP nodes post-order and calling the given transform fn on each node.
     Transform fn is given QEP node & depth (root=0)."""
 
@@ -114,9 +98,9 @@ def transform(plan: dict, fn: Callable[[dict, int], dict]) -> dict:
         qep_node: dict,
         depth: int,
     ):
-        """Perform post-order DFS to enrich the QEP plan nodes"""
+        """Perform post-order DFS to transform the QEP plan nodes"""
         # transform using given fn
-        qep_node = fn(qep_node, depth)
+        qep_node = transform(qep_node, depth)
         # recursively traverse children if any
         if "Plans" in qep_node:
             for child in qep_node["Plans"]:
@@ -127,19 +111,19 @@ def transform(plan: dict, fn: Callable[[dict, int], dict]) -> dict:
     return plan
 
 
-def enrich(plan: dict, enrichers: Iterable[Enricher]) -> dict:
-    """Enrich the query execution plan using the given entrichers."""
+def transform(plan: dict, transformers: Iterable[Transformer]) -> dict:
+    """Transform the query execution plan using the given transformers."""
 
-    def enrich_fn(qep_node: dict, depth: int):
-        for enricher in enrichers:
-            qep_node = enricher.enrich(qep_node, depth)
+    def apply_fn(qep_node: dict, depth: int):
+        for transformer in transformers:
+            qep_node = transformer.transform(qep_node, depth)
         return qep_node
 
-    return transform(plan, enrich_fn)
+    return apply(plan, apply_fn)
 
 
 def preprocess(sql: str, db: Postgres) -> dict:
-    """Parses, preprocess given SQL into enriched QEP plan using the given Postgres DB."""
+    """Parses, preprocess given SQL into transformed QEP plan using the given Postgres DB."""
     plan = db.explain(sql)
-    plan = enrich(plan, [ProjectionEnricher(sql), PrimaryKeyEnricher(db)])
+    plan = transform(plan, [IndexKeyTransformer(db)])
     return plan
