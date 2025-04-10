@@ -1,7 +1,7 @@
 #
 # SC3020
 # Project 2
-# Preprocessing
+# QEP Preprocessing
 #
 
 import re

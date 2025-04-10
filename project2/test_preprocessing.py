@@ -53,18 +53,6 @@ def test_correct_arrays():
         assert correct_sql_arrays(expr) == expected
 
 
-@pytest.fixture
-def query_sqls() -> list[str]:
-    """Fixture of the TPC-H queries in order of ascending query id"""
-    query_dir = Path(__file__).parent / "queries"
-
-    def get_query_id(query_path: Path):
-        return int(os.path.basename(query_path).split(".")[0])
-
-    query_files = sorted(query_dir.glob("*"), key=get_query_id)
-    return [query_file.read_text() for query_file in query_files]
-
-
 def test_postgres_explain(db: Postgres, query_sqls: list[str]):
     # run explain on each query in queries
     for sql in query_sqls:
