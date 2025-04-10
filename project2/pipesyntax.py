@@ -7,9 +7,10 @@
 
 # setup logging
 import logging
+import re
 from dataclasses import dataclass
 
-from preprocessing import apply
+from preprocessing import SUBPLAN_REGEX, apply
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -63,18 +64,52 @@ def indent(sql: str, indent: int = 2) -> str:
 class PipeSyntax:
     """Pipesyntax SQL Generator generates SQL from QEP."""
 
-    def __init__(self):
-        self.subplans = {}
+    def __init__(self, plan: dict = {}):
+        self.subplans = {
+            "InitPlan": {},
+            "SubPlan": {},
+        }
+        self.register_subplan(plan)
 
-    def resolve(self, expr: str) -> str:
+    def register_subplan(self, node: dict):
+        """Register subplans in the given QEP node."""
+        if "Parent Relationship" in node and node["Parent Relationship"] in [
+            "InitPlan",
+            "SubPlan",
+        ]:
+            # recursively generate inner sql of subplan
+            inner = node.copy()
+            inner["Parent Relationship"] = ""
+            inner_sql = gen_chunk(
+                [f"{self.generate(inner)}|> {self.gen_projection(inner)}"],
+                inner["Total Cost"],
+            )
+            self.subplans[node["Parent Relationship"]][
+                node["Subplan Name"]
+            ] = f"(\n{indent(inner_sql)}\n)"
+
+        if "Plans" in node:
+            for plan in node["Plans"]:
+                self.register_subplan(plan)
+
+    def resolve_subplan(self, expr: str) -> str:
         """Resolve subplan references in the given expression."""
-        # TODO: resolve subplan references
+
+        if match := re.search(SUBPLAN_REGEX, expr):
+            subplan_name = match[1]
+            # resolve subplan references to the actual sql
+            if subplan_name in self.subplans["SubPlan"]:
+                return re.sub(
+                    SUBPLAN_REGEX, self.subplans["SubPlan"][subplan_name], expr
+                )
+            log.warning(f"Subplan {subplan_name} not found")
+
         return expr
 
     def gen_projection(self, node: dict) -> str:
         """Generate projection as SELECT statement from QEP node."""
         # resolve subplan references in projected columns
-        columns = [self.resolve(c) for c in node["Output"]]
+        columns = [self.resolve_subplan(c) for c in node["Output"]]
         return f"SELECT {', '.join(columns)}"
 
     def gen_scan(self, node: dict) -> str:
@@ -194,7 +229,9 @@ class PipeSyntax:
         lhs_alias = alias(node["Plans"][-2])
         rhs_alias = alias(node["Plans"][-1])
 
-        join_on = f" ON {self.resolve(node['Join On'])}" if "Join On" in node else ""
+        join_on = (
+            f" ON {self.resolve_subplan(node['Join On'])}" if "Join On" in node else ""
+        )
 
         join_sql = f"""{in_sql}(
 {indent(lhs_sql)}
@@ -222,6 +259,9 @@ class PipeSyntax:
             return self.gen_join(node)
         if node["Node Type"] == "Limit":
             return self.gen_limit(node)
+        if node["Parent Relationship"] in ["InitPlan", "SubPlan"]:
+            # skip already registered subplans
+            return ""
 
         # unknown qep node: ignore node and generate from nested qep nodes
         log.warning(f"Ignoring node: {node['Node Type']}")
@@ -251,4 +291,4 @@ def generate(plan: dict) -> str:
         str: Pipesyntax SQL generated from the plan
     """
 
-    return PipeSyntax().generate(plan)
+    return PipeSyntax(plan).generate(plan)

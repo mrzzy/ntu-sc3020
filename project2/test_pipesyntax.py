@@ -39,7 +39,7 @@ def query_plans(db: Postgres, query_sqls: list[str]):
     return [preprocess(sql, db) for sql in query_sqls]
 
 
-def test_pipesyntax_generate_projection():
+def test_pipesyntax_gen_projection():
     pipesyntax = PipeSyntax()
 
     assert (
@@ -56,12 +56,12 @@ def test_pipesyntax_generate_projection():
     )
 
 
-def test_pipesyntax_generate_scan():
+def test_pipesyntax_gen_scan():
     pipesyntax = PipeSyntax()
     assert pipesyntax.gen_scan(SCAN_QEP) == SCAN_SQL
 
 
-def test_pipesyntax_generate_aggregate():
+def test_pipesyntax_gen_aggregate():
     pipesyntax = PipeSyntax()
     assert (
         pipesyntax.gen_aggregate(
@@ -87,7 +87,7 @@ def test_pipesyntax_generate_aggregate():
     )
 
 
-def test_pipesyntax_generate_orderby():
+def test_pipesyntax_gen_orderby():
     pipesyntax = PipeSyntax()
     assert (
         pipesyntax.gen_orderby(
@@ -110,7 +110,7 @@ def test_pipesyntax_generate_orderby():
     )
 
 
-def test_pipesyntax_generate_limit():
+def test_pipesyntax_gen_limit():
     pipesyntax = PipeSyntax()
     assert (
         pipesyntax.gen_limit(
@@ -138,7 +138,7 @@ def test_pipesyntax_generate_limit():
     )
 
 
-def test_pipesyntax_generate_join():
+def test_pipesyntax_gen_join():
     pipesyntax = PipeSyntax()
 
     assert (
@@ -225,10 +225,61 @@ def test_pipesyntax_generate_join():
     )
 
 
-def test_generate(query_plans):
+def test_pipesyntax_register_subplan():
+    pipesyntax = PipeSyntax()
+
+    pipesyntax.register_subplan(
+        {
+            "Node Type": "Aggregate",
+            "Strategy": "Plain",
+            "Partial Mode": "Simple",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "InitPlan 2",
+            "Parallel Aware": False,
+            "Async Capable": False,
+            "Startup Cost": 226.1,
+            "Total Cost": 226.11,
+            "Plan Rows": 1,
+            "Plan Width": 32,
+            "Output": ["MAX(revenue0_1.total_revenue)"],
+            "Plans": [
+                {
+                    "Node Type": "CTE Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": False,
+                    "Async Capable": False,
+                    "CTE Name": "revenue0",
+                    "Alias": "revenue0_1",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 200.98,
+                    "Plan Rows": 10049,
+                    "Plan Width": 32,
+                    "Output": [
+                        "revenue0_1.supplier_no",
+                        "revenue0_1.total_revenue",
+                    ],
+                    "Relation Name": "revenue0",
+                }
+            ],
+            "Alias": "revenue0_1",
+        }
+    )
+    assert (
+        pipesyntax.subplans["InitPlan"]["InitPlan 2"]
+        == """(
+  FROM `revenue0` AS revenue0_1
+  |> SELECT revenue0_1.supplier_no, revenue0_1.total_revenue
+  -- cost: 200.98
+  |> AGGREGATE MAX(revenue0_1.total_revenue)
+  -- cost: 226.11
+  |> SELECT MAX(revenue0_1.total_revenue)
+  -- cost: 226.11
+)"""
+    )
+
+
+def test_generate(query_plans: list[dict]):
     """Test pipesyntax generation from query plans."""
     for i, plan in enumerate(query_plans):
-        import json
-
-        with open(f"plans/{i}.json", "w") as f:
-            json.dump(generate(plan), f)
+        with open(f"sql/{i+1}.sql", "w") as f:
+            f.write(generate(plan))
