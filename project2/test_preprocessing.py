@@ -17,11 +17,24 @@ from preprocessing import (
     DialectTransformer,
     IndexKeyTransformer,
     Postgres,
+    SubplanNameTransformer,
     apply,
     correct_sql_arrays,
     preprocess,
     transform,
 )
+
+
+def collect_expr(exprs: list[str]):
+    def collect(qep_node: dict, depth: int, subplan: str):
+        for key in qep_node.keys():
+            if key in EXPR_LIST_KEYS:
+                exprs.extend(qep_node[key])
+            if key in EXPR_SINGLE_KEYS:
+                exprs.append(qep_node[key])
+        return qep_node
+
+    return collect
 
 
 def test_correct_arrays():
@@ -69,7 +82,7 @@ def test_index_key_transform(db: Postgres, query_sqls: list[str]):
 
     nodes = []
 
-    def collect_key(qep_node: dict, depth: int):
+    def collect_key(qep_node: dict, depth: int, subplan: str):
         if "Index Key" in qep_node:
             nodes.append(qep_node)
         return qep_node
@@ -102,7 +115,7 @@ def test_cte_name_transform(db: Postgres, query_sqls: list[str]):
 
     nodes = []
 
-    def collect_cte(qep_node: dict, depth: int):
+    def collect_cte(qep_node: dict, depth: int, subplan: str):
         if qep_node["Node Type"] == "CTE Scan" and "Relation Name" in qep_node:
             nodes.append(qep_node)
         return qep_node
@@ -113,10 +126,24 @@ def test_cte_name_transform(db: Postgres, query_sqls: list[str]):
     assert all(n["Relation Name"] == n["CTE Name"] for n in nodes)
 
 
+def test_subplan_name_transform(db: Postgres, query_sqls: list[str]):
+    # test: TPC-H 15th query 15.sql
+    plan = db.explain(query_sqls[15 - 1])
+    plan = transform(plan, [SubplanNameTransformer()])
+    nodes = []
+
+    def check_names(qep_node: dict, depth: int, subplan: str):
+        if "Subplan Name" in qep_node:
+            assert "CTE " not in qep_node["Subplan Name"]
+        return qep_node
+
+    apply(plan, check_names)
+
+
 def test_dialect_transform(db: Postgres, query_sqls: list[str]):
     # test: TPC-H 16th query 16.sql
     plan = db.explain(query_sqls[16 - 1])
-    new_plan = transform(deepcopy(plan), [DialectTransformer(db)])
+    new_plan = transform(deepcopy(plan), [DialectTransformer()])
 
     def collect_to(exprs: list[str]):
         def collect_expr(qep_node: dict, depth: int):
@@ -129,9 +156,11 @@ def test_dialect_transform(db: Postgres, query_sqls: list[str]):
 
         return collect_expr
 
+    new_plan = transform(deepcopy(plan), [DialectTransformer()])
+
     old_exprs, exprs = [], []
-    apply(plan, collect_to(old_exprs))
-    apply(new_plan, collect_to(exprs))
+    apply(plan, collect_expr(old_exprs))
+    apply(new_plan, collect_expr(exprs))
 
     assert len(exprs) == 46
     assert (
@@ -149,5 +178,8 @@ def test_dialect_transform(db: Postgres, query_sqls: list[str]):
 
 
 def test_preprocess(db: Postgres, query_sqls: list[str]):
-    for sql in query_sqls:
-        preprocess(sql, db)
+    for i, sql in enumerate(query_sqls):
+        with open(f"plans/{i+1}.json", "w") as f:
+            import json
+
+            json.dump(preprocess(sql, db), f, indent=2)

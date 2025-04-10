@@ -10,9 +10,9 @@ from typing import Callable, Iterable
 
 import psycopg
 import sqlglot
-from sqlglot.expressions import Return
 
 
+## Postgres integration
 class Postgres:
     """Postgres DB facade."""
 
@@ -70,39 +70,48 @@ WHERE
         return [r[0] for r in result]
 
 
-class Transformer(ABC):
-    """QEP node transformer that takes as input a QEP node, transforms it and returns it"""
+## QEP preprocessing
 
-    @abstractmethod
-    def transform(self, qep_node: dict, depth: int) -> dict:
-        """Transform & return the given QEP node that given depth (root = 0 depth)."""
-
-
-class IndexKeyTransformer(Transformer):
-    """QEP node transformer that adds index key columns for index nodes"""
-
-    def __init__(self, db: Postgres):
-        self.db = db
-
-    def transform(self, qep_node: dict, depth: int) -> dict:
-        relation = "Index Name"
-        if relation in qep_node:
-            qep_node["Index Key"] = self.db.get_index_key(qep_node[relation])
-        return qep_node
-
-
-class CTETransformer(Transformer):
-    """QEP node transformer that in standardises 'CTE Scan' nodetypes."""
-
-    def transform(self, qep_node: dict, depth: int) -> dict:
-        if qep_node["Node Type"] == "CTE Scan":
-            qep_node["Relation Name"] = qep_node["CTE Name"]
-        return qep_node
-
-
+SUBPLAN_REGEX = re.compile(r"\((SubPlan \d+)\)")
 CORRECT_ARRAY_REGEX = re.compile(
     r"CAST\('\{(?P<elements>.*)\}' AS ARRAY<(?P<dtype>.*)>\)"
 )
+
+
+EXPR_LIST_KEYS = {"Group Key", "Sort Key", "Output"}
+EXPR_SINGLE_KEYS = {
+    "Filter",
+    "Join Filter",
+    "Hash Cond",
+    "Index Cond",
+    "Merge Cond",
+    "Recheck Cond",
+}
+
+
+def apply(plan: dict, transform: Callable[[dict, int, str], dict]) -> dict:
+    """Apply the given transform fn on the given QEP.
+    Traverses the given QEP nodes post-order and calling the given transform fn on each node.
+    Transform fn is given QEP node & depth (root=0)."""
+
+    def dfs(qep_node: dict, depth: int, subplan: str):
+        """Perform post-order DFS to transform the QEP plan nodes"""
+        # update subplan name if recursed into a different subplan
+        key = "Subplan Name"
+        if key in qep_node:
+            subplan = qep_node[key]
+
+        # transform using given fn
+        qep_node = transform(qep_node, depth, subplan)
+        # recursively traverse children if any
+        if "Plans" in qep_node:
+            for child in qep_node["Plans"]:
+                dfs(child, depth + 1, subplan)
+        return plan
+
+    plan = dfs(plan, depth=0, subplan="MainPlan")
+    return plan
+
 
 EXPR_LIST_KEYS = {"Group Key", "Sort Key", "Output"}
 EXPR_SINGLE_KEYS = {
@@ -140,33 +149,92 @@ def correct_sql_arrays(expr: str) -> str:
     return re.sub(CORRECT_ARRAY_REGEX, rewrite, expr)
 
 
-class DialectTransformer(Transformer):
-    """QEP node transform that transforms Postgres QEP dialect into Pipeline SQL dialect."""
+class Transformer(ABC):
+    """QEP node transformer that takes as input a QEP node, transforms it and returns it"""
+
+    @abstractmethod
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        """Transform & return the given QEP node
+
+        Args:
+            qep_node: QEP node to transform.
+            depth: Depth of the QEP node in the tree.
+            subplan: Subplan name.
+
+        Returns:
+            dict: Transformed QEP node
+        """
+        pass
+
+
+class IndexKeyTransformer(Transformer):
+    """QEP node transformer that adds index key columns for index nodes"""
 
     def __init__(self, db: Postgres):
         self.db = db
 
-    def transform(self, qep_node: dict, depth: int) -> dict:
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        relation = "Index Name"
+        if relation in qep_node:
+            qep_node["Index Key"] = self.db.get_index_key(qep_node[relation])
+        return qep_node
+
+
+class CTETransformer(Transformer):
+    """QEP node transformer conforms 'CTE Scan' to other scan nodetypes."""
+
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        if qep_node["Node Type"] == "CTE Scan":
+            qep_node["Relation Name"] = qep_node["CTE Name"]
+        return qep_node
+
+
+class SubplanNameTransformer(Transformer):
+    """QEP node transformer that conforms Subplan naming."""
+
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        key = "Subplan Name"
+        if key in qep_node:
+            # remove nonstandard 'CTE ' prefix from subplan names
+            qep_node[key] = qep_node[key].replace("CTE ", "")
+        return qep_node
+
+
+class ExprTransformer(Transformer):
+    """QEP node transform that rewrites expressions in in the QEP node."""
+
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
         for key in qep_node.keys():
             if key in EXPR_LIST_KEYS:
-                qep_node[key] = [self.rewrite(p) for p in qep_node[key]]
+                qep_node[key] = [self.rewrite(p, depth, subplan) for p in qep_node[key]]
             if key in EXPR_SINGLE_KEYS:
-                qep_node[key] = self.rewrite(qep_node[key])
+                qep_node[key] = self.rewrite(qep_node[key], depth, subplan)
 
         return qep_node
 
+    @abstractmethod
+    def rewrite(self, expr: str, depth: int, subplan: str) -> str:
+        """Rewrite & return the given expression"""
+
+
+class DialectTransformer(ExprTransformer):
+    """QEP node transform that transforms Postgres QEP dialect into Pipeline SQL dialect."""
+
     COL_REGEX = re.compile(r"\.col[0-9]+")
-    SUBPLAN_REGEX = re.compile(r"\((Init|Sub)Plan \d+\)")
+    INITPLAN_REGEX = re.compile(r"\((InitPlan \d+)\)")
     ORDER_REGEX = re.compile(r"AS `(ASC|DESC)`")
 
-    def rewrite(self, expr: str) -> str:
+    def rewrite(self, expr: str, depth: int, subplan: str) -> str:
         """Rewrite the given Postgres QEP expression into Pipeline SQL dialect."""
         # clean up non sql "hashed" and ".colX" in expr
         expr = expr.replace("hashed ", "")
         expr = re.sub(self.COL_REGEX, "", expr)
 
+        # quote & remove parathensis around initplan references
+        expr = re.sub(self.INITPLAN_REGEX, lambda m: f'"{m[1]}"', expr)
+
         # quote subplan references
-        expr = re.sub(self.SUBPLAN_REGEX, lambda m: f'"{m[0]}"', expr)
+        expr = re.sub(SUBPLAN_REGEX, lambda m: f'"{m[0]}"', expr)
 
         # transpile to pipeline sql dialect (bigquery)
         results = sqlglot.transpile(expr, read="postgres", write="bigquery")
@@ -176,46 +244,25 @@ class DialectTransformer(Transformer):
                 len(results),
             )
         expr = results[0]
+
         # correct types
         expr = expr.replace("BPCHAR", "STRING")
 
         # correct order direction specifiers ("ASC", "DESC") wrongly transpiled as aliases
         expr = re.sub(self.ORDER_REGEX, r"\1", expr)
 
-        # correct arrays syntax
+        # correct array syntax
         expr = correct_sql_arrays(expr)
 
         return expr
 
 
-def apply(plan: dict, transform: Callable[[dict, int], dict]) -> dict:
-    """Apply the given transform fn on the given QEP.
-    Traverses the given QEP nodes post-order and calling the given transform fn on each node.
-    Transform fn is given QEP node & depth (root=0)."""
-
-    def dfs(
-        qep_node: dict,
-        depth: int,
-    ):
-        """Perform post-order DFS to transform the QEP plan nodes"""
-        # transform using given fn
-        qep_node = transform(qep_node, depth)
-        # recursively traverse children if any
-        if "Plans" in qep_node:
-            for child in qep_node["Plans"]:
-                dfs(child, depth=depth + 1)
-        return plan
-
-    plan = dfs(plan, depth=0)
-    return plan
-
-
 def transform(plan: dict, transformers: Iterable[Transformer]) -> dict:
     """Transform the query execution plan using the given transformers."""
 
-    def apply_all(qep_node: dict, depth: int):
+    def apply_all(qep_node: dict, depth: int, subplan: str):
         for transformer in transformers:
-            qep_node = transformer.transform(qep_node, depth)
+            qep_node = transformer.transform(qep_node, depth, subplan)
         return qep_node
 
     return apply(plan, apply_all)
@@ -224,5 +271,14 @@ def transform(plan: dict, transformers: Iterable[Transformer]) -> dict:
 def preprocess(sql: str, db: Postgres) -> dict:
     """Parses, preprocess given SQL into transformed QEP plan using the given Postgres DB."""
     plan = db.explain(sql)
-    plan = transform(plan, [IndexKeyTransformer(db), CTETransformer()])
+    # 1st pass
+    plan = transform(
+        plan,
+        [
+            SubplanNameTransformer(),
+            CTETransformer(),
+            IndexKeyTransformer(db),
+            DialectTransformer(),
+        ],
+    )
     return plan
