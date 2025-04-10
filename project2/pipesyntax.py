@@ -10,12 +10,19 @@ from dataclasses import dataclass
 from preprocessing import apply
 
 
-@dataclass
-class Chunk:
-    """Chunk of pipeline SQL statements with associated cost."""
+def gen_chunk(statements: list[str], cost: float = 0) -> str:
+    """Generate Pipeline SQL from given statements and cost.
 
-    statements: list[str]
-    cost: float = 0
+    Args:
+        statements: List of SQL statements to chain using "|>" pipeline operator.
+        cost: Cost of the SQL statements.
+    Returns: Pipesyntax SQL in the format:
+        <STATEMENT 1>
+        |> <STATEMENT 2>
+        ...
+        -- cost: <cost>
+    """
+    return "\n|> ".join(statements) + f"\n-- cost: {cost}\n"
 
 
 class PipeSyntax:
@@ -35,20 +42,20 @@ class PipeSyntax:
         columns = [self.resolve_subplan(c) for c in node["Output"]]
         return f"SELECT {', '.join(columns)}"
 
-    def gen_scan(self, node: dict) -> Chunk:
+    def gen_scan(self, node: dict) -> str:
         """Generate SQL statements from given scan QEP node.
 
         Args:
             node: Preprocessed scan QEP node.
         Returns:
-            Generated SQL Chunk with cost.
+            Generated SQL statement with cost.
         """
 
         if node["Node Type"] == "Bitmap Index Scan":
             # bitmap index scans only reduces rows for a bitmap heap scan
             # which will recheck the filter condition on actual rows
             # we can safely ignore when generating functionally equivalent pipeline sql
-            return Chunk([], 0)
+            return ""
 
         statements = [
             f"FROM `{node['Schema']}`.`{node['Relation Name']}` AS {node['Alias']}",
@@ -60,33 +67,33 @@ class PipeSyntax:
             # reflect this by adding an ORDER BY
             direction = "ASC" if node["Scan Direction"] == "Forward" else "DESC"
             statements.append(f"ORDER BY {', '.join(node['Index Key'])} {direction}")
-        return Chunk(statements, node["Total Cost"])
+        return gen_chunk(statements, node["Total Cost"])
 
-    def gen_aggregate(self, node: dict) -> Chunk:
+    def gen_aggregate(self, node: dict) -> str:
         """Generate SQL statements from given aggregate QEP node.
 
         Args:
             node: Preprocessed aggregate QEP node.
         Returns:
-            Generated SQL Chunk with cost.
+            Generated SQL statements with cost.
         """
         grouping = (
             f" GROUP BY {', '.join(node['Group Key'])}" if node["Group Key"] else ""
         )
-        return Chunk(
+        return gen_chunk(
             [f"AGGREGATE {', '.join(node['Output'])}{grouping}"],
             node["Total Cost"],
         )
 
-    def gen_orderby(self, node: dict) -> Chunk:
+    def gen_orderby(self, node: dict) -> str:
         """Generate SQL statements from given orderby QEP node.
 
         Args:
             node: Preprocessed orderby QEP node.
         Returns:
-            Generated SQL Chunk with cost.
+            Generated SQL statements with cost.
         """
-        return Chunk(
+        return gen_chunk(
             [
                 f"ORDER BY {', '.join(node['Sort Key'])}",
                 self.gen_projection(node),
@@ -94,15 +101,15 @@ class PipeSyntax:
             node["Total Cost"],
         )
 
-    def gen_limit(self, node: dict) -> Chunk:
+    def gen_limit(self, node: dict) -> str:
         """Generate SQL statements from given limit QEP node.
 
         Args:
             node: Preprocessed limit QEP node.
         Returns:
-            Generated SQL Chunk with cost.
+            Generated SQL statements with cost.
         """
-        return Chunk(
+        return gen_chunk(
             [f"LIMIT {node['Plan Rows']}", self.gen_projection(node)],
             node["Total Cost"],
         )
