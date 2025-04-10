@@ -5,18 +5,39 @@
 #
 
 import os
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
 
 from preprocessing import (
-    CTENameTransformer,
+    EXPR_LIST_KEYS,
+    EXPR_SINGLE_KEYS,
+    CTETransformer,
+    DialectTransformer,
     IndexKeyTransformer,
     Postgres,
     apply,
+    correct_sql_arrays,
     preprocess,
     transform,
 )
+
+
+def test_correct_arrays():
+    test_cases = [
+        (
+            "CAST('{16,18,47,11,1,42,10,27}' AS ARRAY<INT64>)",
+            "[CAST(16 AS INT64), CAST(18 AS INT64), CAST(47 AS INT64), CAST(11 AS INT64), CAST(1 AS INT64), CAST(42 AS INT64), CAST(10 AS INT64), CAST(27 AS INT64)]",
+        ),
+        (
+            "CAST('{a,b,c}' AS ARRAY<VARCHAR>)",
+            "[CAST(a AS VARCHAR), CAST(b AS VARCHAR), CAST(c AS VARCHAR)]",
+        ),
+    ]
+
+    for expr, expected in test_cases:
+        assert correct_sql_arrays(expr) == expected
 
 
 @pytest.fixture
@@ -77,7 +98,7 @@ def test_index_key_transform(db: Postgres, query_sqls: list[str]):
 def test_cte_name_transform(db: Postgres, query_sqls: list[str]):
     # test: TPC-H 15th query 15.sql
     plan = db.explain(query_sqls[15 - 1])
-    plan = transform(plan, [CTENameTransformer()])
+    plan = transform(plan, [CTETransformer()])
 
     nodes = []
 
@@ -90,6 +111,41 @@ def test_cte_name_transform(db: Postgres, query_sqls: list[str]):
 
     assert len(nodes) == 2
     assert all(n["Relation Name"] == n["CTE Name"] for n in nodes)
+
+
+def test_dialect_transform(db: Postgres, query_sqls: list[str]):
+    # test: TPC-H 16th query 16.sql
+    plan = db.explain(query_sqls[16 - 1])
+    new_plan = transform(deepcopy(plan), [DialectTransformer(db)])
+
+    def collect_to(exprs: list[str]):
+        def collect_expr(qep_node: dict, depth: int):
+            for key in qep_node.keys():
+                if key in EXPR_LIST_KEYS:
+                    exprs.extend(qep_node[key])
+                if key in EXPR_SINGLE_KEYS:
+                    exprs.append(qep_node[key])
+            return qep_node
+
+        return collect_expr
+
+    old_exprs, exprs = [], []
+    apply(plan, collect_to(old_exprs))
+    apply(new_plan, collect_to(exprs))
+
+    assert len(exprs) == 46
+    assert (
+        old_exprs[34] == "(NOT (ANY (partsupp.ps_suppkey = (hashed SubPlan 1).col1)))"
+    )
+    assert exprs[34] == "(NOT (ANY(partsupp.ps_suppkey = `(SubPlan 1)`)))"
+    assert (
+        old_exprs[45]
+        == "((part.p_brand <> 'Brand#53'::bpchar) AND ((part.p_type)::text !~~ 'SMALL POLISHED%'::text) AND (part.p_size = ANY ('{16,18,47,11,1,42,10,27}'::integer[])))"
+    )
+    assert (
+        exprs[45]
+        == "((part.p_brand <> CAST('Brand#53' AS STRING)) AND (NOT CAST((part.p_type) AS STRING) LIKE CAST('SMALL POLISHED%' AS STRING)) AND (part.p_size = ANY([CAST(16 AS INT64), CAST(18 AS INT64), CAST(47 AS INT64), CAST(11 AS INT64), CAST(1 AS INT64), CAST(42 AS INT64), CAST(10 AS INT64), CAST(27 AS INT64)])))"
+    )
 
 
 def test_preprocess(db: Postgres, query_sqls: list[str]):
