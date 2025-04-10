@@ -89,6 +89,15 @@ class IndexKeyTransformer(Transformer):
         return qep_node
 
 
+class CTENameTransformer(Transformer):
+    """QEP node transformer that rename 'CTE' key to 'Relation Name' in 'CTE Scan' nodetypes."""
+
+    def transform(self, qep_node: dict, depth: int) -> dict:
+        if qep_node["Node Type"] == "CTE Scan":
+            qep_node["Relation Name"] = qep_node["CTE Name"]
+        return qep_node
+
+
 def apply(plan: dict, transform: Callable[[dict, int], dict]) -> dict:
     """Apply the given transform fn on the given QEP.
     Traverses the given QEP nodes post-order and calling the given transform fn on each node.
@@ -114,16 +123,16 @@ def apply(plan: dict, transform: Callable[[dict, int], dict]) -> dict:
 def transform(plan: dict, transformers: Iterable[Transformer]) -> dict:
     """Transform the query execution plan using the given transformers."""
 
-    def apply_fn(qep_node: dict, depth: int):
+    def apply_all(qep_node: dict, depth: int):
         for transformer in transformers:
             qep_node = transformer.transform(qep_node, depth)
         return qep_node
 
-    return apply(plan, apply_fn)
+    return apply(plan, apply_all)
 
 
 def preprocess(sql: str, db: Postgres) -> dict:
     """Parses, preprocess given SQL into transformed QEP plan using the given Postgres DB."""
     plan = db.explain(sql)
-    plan = transform(plan, [IndexKeyTransformer(db)])
+    plan = transform(plan, [IndexKeyTransformer(db), CTENameTransformer()])
     return plan

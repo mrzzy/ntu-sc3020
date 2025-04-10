@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from preprocessing import (
+    CTENameTransformer,
     IndexKeyTransformer,
     Postgres,
     apply,
@@ -40,7 +41,7 @@ def test_postgres_get_index_key(db: Postgres):
     assert db.get_index_key("idx_lineitem_part_supp") == ["l_partkey", "l_suppkey"]
 
 
-def test_postgres_transform_index_key(db: Postgres, query_sqls: list[str]):
+def test_index_key_transform(db: Postgres, query_sqls: list[str]):
     # test: TPC-H 8th query 8.sql
     plan = db.explain(query_sqls[8 - 1])
     plan = transform(plan, [IndexKeyTransformer(db)])
@@ -71,6 +72,24 @@ def test_postgres_transform_index_key(db: Postgres, query_sqls: list[str]):
             "n_nationkey",
         ],
     ]
+
+
+def test_cte_name_transform(db: Postgres, query_sqls: list[str]):
+    # test: TPC-H 15th query 15.sql
+    plan = db.explain(query_sqls[15 - 1])
+    plan = transform(plan, [CTENameTransformer()])
+
+    nodes = []
+
+    def collect_cte(qep_node: dict, depth: int):
+        if qep_node["Node Type"] == "CTE Scan" and "Relation Name" in qep_node:
+            nodes.append(qep_node)
+        return qep_node
+
+    apply(plan, collect_cte)
+
+    assert len(nodes) == 2
+    assert all(n["Relation Name"] == n["CTE Name"] for n in nodes)
 
 
 def test_preprocess(db: Postgres, query_sqls: list[str]):
