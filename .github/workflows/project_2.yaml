@@ -30,6 +30,8 @@ jobs:
           ruff check
 
       - name: Run Tests
+        env:
+          POSTGRES_PASSWORD: test
         run: pytest
 
   publish:
