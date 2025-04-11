@@ -76,6 +76,8 @@ class PipeSyntax:
             "InitPlan": {},
             "SubPlan": {},
         }
+        self.agg_index = 0
+        self.agg_aliases = {}
         self.register_subplan(plan)
 
     def register_subplan(self, node: dict):
@@ -84,6 +86,9 @@ class PipeSyntax:
             "InitPlan",
             "SubPlan",
         ]:
+            # reset aggregate state for each subplan
+            self.agg_aliases = {}
+
             # recursively generate inner sql of subplan
             inner = node.copy()
             inner["Parent Relationship"] = ""
@@ -101,8 +106,10 @@ class PipeSyntax:
 
     QUOTED_SUBPLAN_REGEX = re.compile(r"`\((SubPlan \d+)\)`")
 
-    def resolve_subplan(self, expr: str) -> str:
-        """Resolve subplan references in the given expression."""
+    def resolve(self, expr: str) -> str:
+        """Resolve references in the given expression."""
+        if expr in self.agg_aliases:
+            return f"`{self.agg_aliases[expr]}`"
 
         if match := re.search(self.QUOTED_SUBPLAN_REGEX, expr):
             subplan_name = match[1]
@@ -120,7 +127,7 @@ class PipeSyntax:
     def gen_projection(self, node: dict) -> str:
         """Generate projection as SELECT statement from QEP node."""
         # resolve subplan references in projected columns
-        columns = [self.resolve_subplan(c) for c in node["Output"]]
+        columns = [self.resolve(c) for c in node["Output"]]
         return f"SELECT {', '.join(columns)}"
 
     def gen_filters(self, node: dict) -> list[str]:
@@ -133,7 +140,7 @@ class PipeSyntax:
         """
         if "Filters" not in node:
             return []
-        filters = [self.resolve_subplan(f) for f in node["Filters"]]
+        filters = [self.resolve(f) for f in node["Filters"]]
         # filters already have parenthesis around them so precedence is already preserved
         # when joining them with 'AND'
         return [f"WHERE {' AND '.join(filters)}"]
@@ -189,8 +196,21 @@ class PipeSyntax:
         # qep lists grouping keys first but aggregate expects only aggregation expressions
         # skip the grouping keys listed first in qep
         n_group_keys = len(node["Group Key"]) if "Group Key" in node else 0
+        aggregates = node["Output"][n_group_keys:]
+
+        # register unique aliases for each aggregate
+        agg_aliased = []
+        for aggregate in aggregates:
+            aggregate = self.resolve(aggregate)
+            if aggregate not in self.agg_aliases:
+                alias = f"agg_{self.agg_index}"
+                self.agg_aliases[aggregate] = alias
+                self.agg_index += 1
+
+                agg_aliased.append(f"{aggregate} AS `{alias}`")
+
         statements = [
-            f"AGGREGATE {', '.join(node['Output'][n_group_keys:])}{grouping}"
+            f"AGGREGATE {', '.join(agg_aliased)}{grouping}"
             # filters needed to implement to 'HAVING' filter on aggregation
         ] + self.gen_filters(node)
         return gen_chunk(statements, node["Total Cost"], in_sql)
@@ -259,9 +279,7 @@ class PipeSyntax:
         rhs_alias = alias(node["Plans"][1])
 
         # generate join statement
-        join_on = (
-            f" ON {self.resolve_subplan(node['Join On'])}" if "Join On" in node else ""
-        )
+        join_on = f" ON {self.resolve(node['Join On'])}" if "Join On" in node else ""
 
         join_sql = f"""{lhs_sql + lhs_alias}
 |> {join_clause(node['Join Type'])} (
@@ -292,6 +310,9 @@ class PipeSyntax:
             "InitPlan",
             "SubPlan",
         ]:
+            # reset aggregate state
+            self.agg_aliases = {}
+
             # skip already registered subplans
             log.warning("Skipping node.", node)
             return ""

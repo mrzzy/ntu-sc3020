@@ -104,7 +104,7 @@ def test_pipesyntax_gen_aggregate():
             }
         )
         == SCAN_SQL
-        + """|> AGGREGATE MIN(c_name) GROUP BY customer.c_custkey
+        + """|> AGGREGATE MIN(c_name) AS `agg_0` GROUP BY customer.c_custkey
 |> WHERE (customer.c_custkey = 1)
 -- cost: 9895.42
 """
@@ -291,9 +291,9 @@ INITPLAN_SQL = """(
   FROM `revenue0` AS `revenue0_1`
   |> SELECT revenue0_1.supplier_no, revenue0_1.total_revenue
   -- cost: 200.98
-  |> AGGREGATE MAX(revenue0_1.total_revenue)
+  |> AGGREGATE MAX(revenue0_1.total_revenue) AS `agg_0`
   -- cost: 226.11
-  |> SELECT MAX(revenue0_1.total_revenue)
+  |> SELECT `agg_0`
   -- cost: 226.11
 )"""
 
@@ -310,11 +310,12 @@ def test_pipesyntax_gen_initplan():
 
     # register copy of init plan under name "InitPlan 1" instead of "InitPlan 2"
     initplan_1 = INITPLAN.copy()
+    initplan_1_sql = INITPLAN_SQL.replace("agg_0", "agg_1")
     initplan_1["Subplan Name"] = "InitPlan 1"
     pipesyntax.register_subplan(initplan_1)
     assert (
         pipesyntax.gen_initplans()
-        == f"WITH `InitPlan 2` AS {INITPLAN_SQL}, `InitPlan 1` AS {INITPLAN_SQL}\n"
+        == f"WITH `InitPlan 2` AS {INITPLAN_SQL}, `InitPlan 1` AS {initplan_1_sql}\n"
     )
 
 
