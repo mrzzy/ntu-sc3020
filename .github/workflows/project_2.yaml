@@ -35,7 +35,7 @@ jobs:
       - name: Setup DB
         run: |
           docker compose up -d
-          sleep 120
+          sleep 180
           docker compose down
           docker compose logs
       - name: Run Tests
