@@ -156,10 +156,9 @@ class PipeSyntax:
         in_sql = "".join(self.gen_nested(node))
 
         # generate statements for scan
-        schema = f"`{node['Schema']}`." if "Schema" in node else ""
         statements = (
             [
-                f"FROM {schema}`{node['Relation Name']}` AS `{node['Alias']}`",
+                f"FROM `{node['Relation Name']}` AS `{node['Alias']}`",
             ]
             + self.gen_filters(node)
             + [self.gen_projection(node)]
@@ -193,7 +192,7 @@ class PipeSyntax:
         return gen_chunk(statements, node["Total Cost"], in_sql)
 
     def gen_orderby(self, node: dict) -> str:
-        """Generate SQL statements from given orderby QEP node.
+        """Generate SQL statements from given sort QEP node.
 
         Args:
             node: Preprocessed orderby QEP node.

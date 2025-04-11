@@ -30,7 +30,7 @@ SCAN_QEP = {
     "Index Key": ["c_custkey"],
 }
 
-SCAN_SQL = """FROM `public`.`customer` AS `customer`
+SCAN_SQL = """FROM `customer` AS `customer`
 |> WHERE (customer.c_custkey = 1)
 |> SELECT customer.c_custkey
 |> ORDER BY c_custkey ASC
@@ -233,11 +233,11 @@ def test_pipesyntax_gen_join():
             )
         )
         == """(
-  FROM `public`.`customer` AS `c1`
+  FROM `customer` AS `c1`
   |> SELECT c1.c_custkey, c1.c_name
   -- cost: 5236.0
 ) AS `c1` INNER JOIN (
-  FROM `public`.`customer` AS `c2`
+  FROM `customer` AS `c2`
   |> SELECT c2.c_custkey
   |> ORDER BY c_custkey ASC
   -- cost: 3937.42
