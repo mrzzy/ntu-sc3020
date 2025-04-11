@@ -47,6 +47,30 @@ def indent(sql: str, indent: int = 2) -> str:
     return "\n".join(" " * indent + line for line in sql.splitlines())
 
 
+def join_clause(join_type: str) -> str:
+    """Convert join type to SQL join clause.
+
+    Args:
+        join_type: Join type in QEP.
+    Returns:
+        Equivalent SQL join clause.
+    """
+    if join_type == "Inner":
+        return "INNER JOIN"
+    if join_type == "Left":
+        return "LEFT JOIN"
+    if join_type == "Right":
+        return "RIGHT JOIN"
+    if join_type == "Full":
+        return "FULL OUTER JOIN"
+    if join_type == "Anti":
+        return "WHERE NOT EXISTS"
+    if join_type == "Semi":
+        return "WHERE EXISTS"
+
+    raise ValueError(f"Unsupported join type: {join_type}")
+
+
 class PipeSyntax:
     """Pipesyntax SQL Generator generates SQL from QEP."""
 
@@ -219,23 +243,23 @@ class PipeSyntax:
         operands = self.gen_nested(node)
         if len(operands) < 2:
             raise ValueError(f"Expected >= 2 operands, got: {len(operands)}")
-
-        # generate join statement
         rhs_sql = operands.pop()
         lhs_sql = operands.pop()
         in_sql = "".join(operands)
 
+        # fetch aliases from child plannodes
         alias = lambda n: f" AS `{n['Alias']}`" if "Alias" in n else ""
         lhs_alias = alias(node["Plans"][-2])
         rhs_alias = alias(node["Plans"][-1])
 
+        # generate join statement
         join_on = (
             f" ON {self.resolve_subplan(node['Join On'])}" if "Join On" in node else ""
         )
 
         join_sql = f"""{in_sql}(
 {indent(lhs_sql)}
-){lhs_alias} {node['Join Type'].upper()} JOIN (
+){lhs_alias} {join_clause(node['Join Type'])} (
 {indent(rhs_sql)}
 ){rhs_alias}{join_on}"""
 
