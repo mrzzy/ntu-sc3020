@@ -4,11 +4,8 @@
 # Preprocessing Unit Tests
 #
 
-import os
 from copy import deepcopy
-from pathlib import Path
 
-import pytest
 
 from preprocessing import (
     EXPR_LIST_KEYS,
@@ -159,7 +156,6 @@ def test_subplan_name_transform(db: Postgres, query_sqls: list[str]):
     # test: TPC-H 15th query 15.sql
     plan = db.explain(query_sqls[15 - 1])
     plan = transform(plan, [SubplanNameTransformer()])
-    nodes = []
 
     def check_names(qep_node: dict, depth: int, subplan: str):
         if "Subplan Name" in qep_node:

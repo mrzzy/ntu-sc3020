@@ -4,7 +4,9 @@
 # Pipesyntax Generation Unit Tests
 #
 
+import docker
 import pytest
+from docker.errors import ContainerError
 
 from pipesyntax import PipeSyntax, generate
 from preprocessing import Postgres, preprocess
@@ -232,16 +234,17 @@ def test_pipesyntax_gen_join():
                 }
             )
         )
-        == """(
-  FROM `customer` AS `c1`
-  |> SELECT c1.c_custkey, c1.c_name
-  -- cost: 5236.0
-) AS `c1` INNER JOIN (
+        == """FROM `customer` AS `c1`
+|> SELECT c1.c_custkey, c1.c_name
+-- cost: 5236.0
+|> AS `c1`
+|> INNER JOIN (
   FROM `customer` AS `c2`
   |> SELECT c2.c_custkey
   |> ORDER BY c_custkey ASC
   -- cost: 3937.42
-) AS `c2` ON (c1.c_custkey = c2.c_custkey)
+  |> AS `c2`
+) ON (c1.c_custkey = c2.c_custkey)
 |> WHERE (c1.c_name = c2.c_name)
 |> SELECT c1.c_name
 -- cost: 11442.18
@@ -317,6 +320,18 @@ def test_pipesyntax_gen_initplan():
 
 def test_generate(query_plans: list[dict]):
     """Test pipesyntax generation from query plans."""
+    docker_cli = docker.from_env()
     for i, plan in enumerate(query_plans):
-        with open(f"sql/{i+1}.sql", "w") as f:
-            f.write(generate(plan))
+        sql = generate(plan)
+        # check if the generated SQL is valid using zettasql's execute pipesyntax to parse
+        try:
+            docker_cli.containers.run(
+                image="ghcr.io/mrzzy/ntu-sc3020/project2_execute_query:latest",
+                command=["--mode=parse", sql],
+            )
+        except ContainerError as e:
+            print(sql)
+            print(f"Failed: Query generated Pipesyntax SQL failed to parse: {i+1}")
+            if e.stderr:
+                print("Stderr:")
+                print(e.stderr)

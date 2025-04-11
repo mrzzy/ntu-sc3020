@@ -8,9 +8,7 @@
 # setup logging
 import logging
 import re
-from dataclasses import dataclass
 
-from preprocessing import SUBPLAN_REGEX, apply
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -99,7 +97,7 @@ class PipeSyntax:
             ] = f"(\n{indent(inner_sql)}\n)"
 
         if "Plans" in node:
-            for plan in node["Plans"]:
+            for i, plan in enumerate(node["Plans"]):
                 self.register_subplan(plan)
 
     QUOTED_SUBPLAN_REGEX = re.compile(r"`\((SubPlan \d+)\)`")
@@ -249,25 +247,26 @@ class PipeSyntax:
         operands = self.gen_nested(node)
         if len(operands) < 2:
             raise ValueError(f"Expected >= 2 operands, got: {len(operands)}")
-        rhs_sql = operands.pop()
-        lhs_sql = operands.pop()
-        in_sql = "".join(operands)
+        if len(operands) > 2:
+            logging.warning(f"Ignoring {len(operands)-2} operands, assuming Subplan.")
+
+        lhs_sql, rhs_sql = operands[0], operands[1]
 
         # fetch aliases from child plans
-        alias = lambda n: f" AS `{n['Alias']}`" if "Alias" in n else ""
-        lhs_alias = alias(node["Plans"][-2])
-        rhs_alias = alias(node["Plans"][-1])
+        def alias(n):
+            return f"|> AS `{n['Alias']}`" if "Alias" in n else ""
+        lhs_alias = alias(node["Plans"][0])
+        rhs_alias = alias(node["Plans"][1])
 
         # generate join statement
         join_on = (
             f" ON {self.resolve_subplan(node['Join On'])}" if "Join On" in node else ""
         )
 
-        join_sql = f"""{in_sql}(
-{indent(lhs_sql)}
-){lhs_alias} {join_clause(node['Join Type'])} (
-{indent(rhs_sql)}
-){rhs_alias}{join_on}"""
+        join_sql = f"""{lhs_sql + lhs_alias}
+|> {join_clause(node['Join Type'])} (
+{indent(rhs_sql+rhs_alias)}
+){join_on}"""
 
         statements = [join_sql] + self.gen_filters(node) + [self.gen_projection(node)]
         return gen_chunk(statements, node["Total Cost"])
@@ -289,6 +288,14 @@ class PipeSyntax:
         Returns:
             Pipesyntax SQL statements generated from the QEP node.
         """
+        if "Parent Relationship" in node and node["Parent Relationship"] in [
+            "InitPlan",
+            "SubPlan",
+        ]:
+            # skip already registered subplans
+            log.warning("Skipping node.", node)
+            return ""
+
         if top_level:
             # include initplans in the top level qep node sql
             return self.gen_initplans() + self.generate(node)
@@ -303,9 +310,6 @@ class PipeSyntax:
             return self.gen_join(node)
         if node["Node Type"] == "Limit":
             return self.gen_limit(node)
-        if node["Parent Relationship"] in ["InitPlan", "SubPlan"]:
-            # skip already registered subplans
-            return ""
 
         # unknown qep node: ignore node and generate from nested qep nodes
         log.warning(f"Ignoring node: {node['Node Type']}")
