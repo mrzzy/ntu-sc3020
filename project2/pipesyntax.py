@@ -185,8 +185,11 @@ class PipeSyntax:
         grouping = (
             f" GROUP BY {', '.join(node['Group Key'])}" if "Group Key" in node else ""
         )
+        # qep lists grouping keys first but aggregate expects only aggregation expressions
+        # skip the grouping keys listed first in qep
+        n_group_keys = len(node["Group Key"]) if "Group Key" in node else 0
         statements = [
-            f"AGGREGATE {', '.join(node['Output'])}{grouping}"
+            f"AGGREGATE {', '.join(node['Output'][n_group_keys:])}{grouping}"
             # filters needed to implement to 'HAVING' filter on aggregation
         ] + self.gen_filters(node)
         return gen_chunk(statements, node["Total Cost"], in_sql)

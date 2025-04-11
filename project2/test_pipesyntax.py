@@ -102,7 +102,7 @@ def test_pipesyntax_gen_aggregate():
             }
         )
         == SCAN_SQL
-        + """|> AGGREGATE c_custkey, MIN(c_name) GROUP BY customer.c_custkey
+        + """|> AGGREGATE MIN(c_name) GROUP BY customer.c_custkey
 |> WHERE (customer.c_custkey = 1)
 -- cost: 9895.42
 """
