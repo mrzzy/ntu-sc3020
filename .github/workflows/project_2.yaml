@@ -33,14 +33,13 @@ jobs:
 
           
       - name: Setup DB
-        run:
+        run: |
           docker compose run -d
           sleep 60
           docker-compose down
           docker-compose logs
       - name: Run Tests
-        run: |
-          pytest
+        run: pytest
 
   publish:
     strategy:
