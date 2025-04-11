@@ -7,7 +7,7 @@
 import pytest
 
 from pipesyntax import PipeSyntax, generate
-from preprocessing import Postgres, preprocess, pushup_aliases
+from preprocessing import Postgres, preprocess
 
 SCAN_QEP = {
     "Node Type": "Index Only Scan",
@@ -23,11 +23,15 @@ SCAN_QEP = {
     "Total Cost": 3937.42,
     "Plan Rows": 150000,
     "Plan Width": 4,
+    "Filters": [
+        "(customer.c_custkey = 1)",
+    ],
     "Output": ["customer.c_custkey"],
     "Index Key": ["c_custkey"],
 }
 
 SCAN_SQL = """FROM `public`.`customer` AS customer
+|> WHERE (customer.c_custkey = 1)
 |> SELECT customer.c_custkey
 |> ORDER BY c_custkey ASC
 -- cost: 3937.42
@@ -56,6 +60,20 @@ def test_pipesyntax_gen_projection():
     )
 
 
+def test_pipesyntax_gen_filters():
+    pipesyntax = PipeSyntax()
+    assert pipesyntax.gen_filters(
+        {
+            "Filters": [
+                "(customer.c_custkey = 1)",
+                "(customer.c_nationkey = nation.n_nationkey)",
+            ],
+        }
+    ) == [
+        "WHERE (customer.c_custkey = 1) AND (customer.c_nationkey = nation.n_nationkey)"
+    ]
+
+
 def test_pipesyntax_gen_scan():
     pipesyntax = PipeSyntax()
     assert pipesyntax.gen_scan(SCAN_QEP) == SCAN_SQL
@@ -77,11 +95,15 @@ def test_pipesyntax_gen_aggregate():
                 "Plan Width": 36,
                 "Plans": [SCAN_QEP],
                 "Output": ["c_custkey", "MIN(c_name)"],
+                "Filters": [
+                    "(customer.c_custkey = 1)",
+                ],
                 "Group Key": ["customer.c_custkey"],
             }
         )
         == SCAN_SQL
         + """|> AGGREGATE c_custkey, MIN(c_name) GROUP BY customer.c_custkey
+|> WHERE (customer.c_custkey = 1)
 -- cost: 9895.42
 """
     )
@@ -103,8 +125,8 @@ def test_pipesyntax_gen_orderby():
             }
         )
         == SCAN_SQL
-        + """|> ORDER BY customer.c_name, customer.c_address DESC
-|> SELECT c_name
+        + """|> SELECT c_name
+|> ORDER BY customer.c_name, customer.c_address DESC
 -- cost: 21583.45
 """
     )
@@ -155,6 +177,7 @@ def test_pipesyntax_gen_join():
                     "Plan Width": 19,
                     "Output": ["c1.c_name"],
                     "Inner Unique": True,
+                    "Filters": ["(c1.c_name = c2.c_name)"],
                     "Join On": "(c1.c_custkey = c2.c_custkey)",
                     "Plans": [
                         {
@@ -219,6 +242,7 @@ def test_pipesyntax_gen_join():
   |> ORDER BY c_custkey ASC
   -- cost: 3937.42
 ) AS `c2` ON (c1.c_custkey = c2.c_custkey)
+|> WHERE (c1.c_name = c2.c_name)
 |> SELECT c1.c_name
 -- cost: 11442.18
 """

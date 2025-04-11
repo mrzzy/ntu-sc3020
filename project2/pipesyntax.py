@@ -16,37 +16,23 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-def gen_chunk(statements: list[str], cost: float = 0) -> str:
+def gen_chunk(statements: list[str], cost: float = 0, in_sql: str = "") -> str:
     """Generate Pipeline SQL from given statements and cost.
 
     Args:
         statements: List of SQL statements to chain using "|>" pipeline operator.
         cost: Cost of the SQL statements.
+        in_sql: SQL statement to prepend to the generated SQL chunk.
     Returns: Pipesyntax SQL in the format:
-        <STATEMENT 1>
+        [<in_sql>
+        |> ]<STATEMENT 1>
         |> <STATEMENT 2>
         ...
         -- cost: <cost>
     """
-    return "\n|> ".join(statements) + f"\n-- cost: {cost}\n"
-
-
-def append(in_sql: str, next_sql: str):
-    """Appends next_sql to in_sql with '|>' pipeline operator.
-
-    Args:
-        in_sql: SQL statement to append to.
-        next_sql: SQL statement to append.
-
-    Returns:
-        If in_sql is empty, returns next_sql without pipeline operator.
-        If next_sql is empty, returns in_sql without pipeline operator.
-    """
-    if not in_sql:
-        return next_sql
-    if not next_sql:
-        return in_sql
-    return in_sql + "|> " + next_sql
+    # chain in_sql with "|>" operator if it is not empty
+    in_sql_pipe = "" if len(in_sql) == 0 else f"{in_sql}|> "
+    return in_sql_pipe + "\n|> ".join(statements) + f"\n-- cost: {cost}\n"
 
 
 def indent(sql: str, indent: int = 2) -> str:
@@ -112,6 +98,21 @@ class PipeSyntax:
         columns = [self.resolve_subplan(c) for c in node["Output"]]
         return f"SELECT {', '.join(columns)}"
 
+    def gen_filters(self, node: dict) -> list[str]:
+        """Generate filters from QEP node as WHERE statements
+
+        Args:
+            node: Preprocessed QEP node.
+        Returns:
+            List of WHERE statements generated from the filters.
+        """
+        if "Filters" not in node:
+            return []
+        filters = [self.resolve_subplan(f) for f in node["Filters"]]
+        # filters already have parenthesis around them so precedence is already preserved
+        # when joining them with 'AND'
+        return [f"WHERE {' AND '.join(filters)}"]
+
     def gen_scan(self, node: dict) -> str:
         """Generate SQL statements from given scan QEP node.
 
@@ -132,17 +133,20 @@ class PipeSyntax:
 
         # generate statements for scan
         schema = f"`{node['Schema']}`." if "Schema" in node else ""
-        statements = [
-            f"FROM {schema}`{node['Relation Name']}` AS {node['Alias']}",
-            self.gen_projection(node),
-        ]
+        statements = (
+            [
+                f"FROM {schema}`{node['Relation Name']}` AS {node['Alias']}",
+            ]
+            + self.gen_filters(node)
+            + [self.gen_projection(node)]
+        )
 
         if node["Node Type"] in {"Index Only Scan", "Index Scan"}:
             # index scans read rows in the order of the index
             # reflect this by adding an ORDER BY
             direction = "ASC" if node["Scan Direction"] == "Forward" else "DESC"
             statements.append(f"ORDER BY {', '.join(node['Index Key'])} {direction}")
-        return append(in_sql, gen_chunk(statements, node["Total Cost"]))
+        return gen_chunk(statements, node["Total Cost"], in_sql)
 
     def gen_aggregate(self, node: dict) -> str:
         """Generate SQL statements from given aggregate QEP node.
@@ -158,13 +162,11 @@ class PipeSyntax:
         grouping = (
             f" GROUP BY {', '.join(node['Group Key'])}" if "Group Key" in node else ""
         )
-        return append(
-            in_sql,
-            gen_chunk(
-                [f"AGGREGATE {', '.join(node['Output'])}{grouping}"],
-                node["Total Cost"],
-            ),
-        )
+        statements = [
+            f"AGGREGATE {', '.join(node['Output'])}{grouping}"
+            # filters needed to implement to 'HAVING' filter on aggregation
+        ] + self.gen_filters(node)
+        return gen_chunk(statements, node["Total Cost"], in_sql)
 
     def gen_orderby(self, node: dict) -> str:
         """Generate SQL statements from given orderby QEP node.
@@ -176,16 +178,12 @@ class PipeSyntax:
         """
         # recursively generate sql in nested plans
         in_sql = "".join(self.gen_nested(node))
-        return append(
-            in_sql,
-            gen_chunk(
-                [
-                    f"ORDER BY {', '.join(node['Sort Key'])}",
-                    self.gen_projection(node),
-                ],
-                node["Total Cost"],
-            ),
-        )
+        statements = self.gen_filters(node) + [
+            self.gen_projection(node),
+            f"ORDER BY {', '.join(node['Sort Key'])}",
+        ]
+
+        return gen_chunk(statements, node["Total Cost"], in_sql)
 
     def gen_limit(self, node: dict) -> str:
         """Generate SQL statements from given limit QEP node.
@@ -198,12 +196,14 @@ class PipeSyntax:
         # recursively generate sql in nested plans
         in_sql = "".join(self.gen_nested(node))
 
-        return append(
+        statements = [
+            f"LIMIT {node['Plan Rows']}",
+            self.gen_projection(node),
+        ]
+        return gen_chunk(
+            statements,
+            node["Total Cost"],
             in_sql,
-            gen_chunk(
-                [f"LIMIT {node['Plan Rows']}", self.gen_projection(node)],
-                node["Total Cost"],
-            ),
         )
 
     def gen_join(self, node: dict) -> str:
@@ -239,7 +239,8 @@ class PipeSyntax:
 {indent(rhs_sql)}
 ){rhs_alias}{join_on}"""
 
-        return gen_chunk([join_sql, self.gen_projection(node)], node["Total Cost"])
+        statements = [join_sql] + self.gen_filters(node) + [self.gen_projection(node)]
+        return gen_chunk(statements, node["Total Cost"])
 
     def generate(self, node: dict) -> str:
         """Generate pipesyntax SQL statements from given preprocessed QEP node.
