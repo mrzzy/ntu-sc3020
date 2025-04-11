@@ -6,17 +6,26 @@
 
 import os
 from pathlib import Path
+from typing import Generator, Iterable
 
+import docker
+import psycopg
 import pytest
+from testcontainers.compose import DockerCompose
+from testcontainers.core.container import wait_for_logs
 
 from preprocessing import Postgres
 
 
-@pytest.fixture
-def db() -> Postgres:
-    return Postgres(
-        host="localhost", user="postgres", password=os.environ["POSTGRES_PASSWORD"]
-    )
+@pytest.fixture(scope="module")
+def db() -> Iterable[Postgres]:
+    with DockerCompose(".", keep_volumes=True, wait=True) as compose:
+        yield Postgres(
+            host="localhost",
+            port=5432,
+            user="postgres",
+            password=os.environ["POSTGRES_PASSWORD"],
+        )
 
 
 @pytest.fixture
