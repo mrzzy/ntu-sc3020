@@ -216,6 +216,8 @@ class DialectTransformer(ExprTransformer):
     COL_REGEX = re.compile(r"\.col[0-9]+")
     INITPLAN_REGEX = re.compile(r"\((InitPlan \d+)\)")
     ORDER_REGEX = re.compile(r"AS `(ASC|DESC)`")
+    ANY_RHS_REGEX = re.compile(r"= ANY\((.*)\)")
+    ANY_LHS_REGEX = re.compile(r"ANY\((.*) = (.*)\)")
 
     def rewrite(self, expr: str, depth: int, subplan: str) -> str:
         """Rewrite the given Postgres QEP expression into Pipeline SQL dialect."""
@@ -246,6 +248,11 @@ class DialectTransformer(ExprTransformer):
 
         # correct array syntax
         expr = correct_sql_arrays(expr)
+
+        # rewrite "= ANY(...)" into "IN (...)" as former is not supported in zettasql
+        expr = re.sub(self.ANY_RHS_REGEX, lambda m: f"IN ({m[1]})", expr)
+        # rewrite "ANY(...) = ..." into "(...) IN (...)"
+        expr = re.sub(self.ANY_LHS_REGEX, lambda m: f"({m[1]}) IN ({m[2]})", expr)
 
         return expr
 
