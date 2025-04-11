@@ -187,10 +187,18 @@ class PipeSyntax:
             f" GROUP BY {', '.join(node['Group Key'])}" if "Group Key" in node else ""
         )
         # qep lists grouping keys first but aggregate expects only aggregation expressions
-        # skip the grouping keys listed first in qep
-        n_group_keys = len(node["Group Key"]) if "Group Key" in node else 0
+        group_keys = set()
+        if "Group Key" in node:
+            for group_key in node["Group Key"]:
+                group_keys.add(group_key)
+                if "." in group_key:
+                    # also match unqualified group keys
+                    group_keys.add(group_key.split(".")[1])
+
+        # skip the grouping keys when building aggregates
+        aggregates = [o for o in node["Output"] if o not in group_keys]
         statements = [
-            f"AGGREGATE {', '.join(node['Output'][n_group_keys:])}{grouping}"
+            f"AGGREGATE {', '.join(aggregates)}{grouping}"
             # filters needed to implement to 'HAVING' filter on aggregation
         ] + self.gen_filters(node)
         return gen_chunk(statements, node["Total Cost"], in_sql)
