@@ -71,12 +71,6 @@ WHERE
 
 
 ## QEP preprocessing
-# regular expressions for matching
-SUBPLAN_REGEX = re.compile(r"\((SubPlan \d+)\)")
-CORRECT_ARRAY_REGEX = re.compile(
-    r"CAST\('\{(?P<elements>.*)\}' AS ARRAY<(?P<dtype>.*)>\)"
-)
-
 # qep node keys with lists of expressions
 EXPR_LIST_KEYS = {"Group Key", "Sort Key", "Output"}
 # qep node keys with single atomic expressions
@@ -100,6 +94,11 @@ JOIN_ON_KEYS = [
     "Hash Cond",
     "Merge Cond",
 ]
+
+# rewrite array syntax regex
+CORRECT_ARRAY_REGEX = re.compile(
+    r"CAST\('\{(?P<elements>[^\}]*)\}' AS ARRAY<(?P<dtype>[^>]*)>\)"
+)
 
 
 def apply(plan: dict, transform: Callable[[dict, int, str], dict]) -> dict:
@@ -213,11 +212,12 @@ class ExprTransformer(Transformer):
 class DialectTransformer(ExprTransformer):
     """QEP node transform that transforms Postgres QEP dialect into Pipeline SQL dialect."""
 
+    SUBPLAN_REGEX = re.compile(r"\((SubPlan \d+)\)")
     COL_REGEX = re.compile(r"\.col[0-9]+")
     INITPLAN_REGEX = re.compile(r"\((InitPlan \d+)\)")
     ORDER_REGEX = re.compile(r"AS `(ASC|DESC)`")
-    ANY_RHS_REGEX = re.compile(r"= ANY\((.*)\)")
-    ANY_LHS_REGEX = re.compile(r"ANY\((.*) = (.*)\)")
+    ANY_RHS_REGEX = re.compile(r"= ANY\(([^\)]*)\)")
+    ANY_LHS_REGEX = re.compile(r"ANY\(([^\)]*) = ([^\)]*)\)")
 
     def rewrite(self, expr: str, depth: int, subplan: str) -> str:
         """Rewrite the given Postgres QEP expression into Pipeline SQL dialect."""
@@ -229,7 +229,7 @@ class DialectTransformer(ExprTransformer):
         expr = re.sub(self.INITPLAN_REGEX, lambda m: f'"{m[1]}"', expr)
 
         # quote subplan references
-        expr = re.sub(SUBPLAN_REGEX, lambda m: f'"{m[0]}"', expr)
+        expr = re.sub(self.SUBPLAN_REGEX, lambda m: f'"{m[0]}"', expr)
 
         # transpile to pipeline sql dialect (bigquery)
         results = sqlglot.transpile(expr, read="postgres", write="bigquery")

@@ -9,7 +9,6 @@
 import logging
 import re
 
-
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -255,6 +254,7 @@ class PipeSyntax:
         # fetch aliases from child plans
         def alias(n):
             return f"|> AS `{n['Alias']}`" if "Alias" in n else ""
+
         lhs_alias = alias(node["Plans"][0])
         rhs_alias = alias(node["Plans"][1])
 
