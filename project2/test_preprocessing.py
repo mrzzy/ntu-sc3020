@@ -12,7 +12,6 @@ from preprocessing import (
     CTETransformer,
     DialectTransformer,
     FilterTransformer,
-    IndexKeyTransformer,
     JoinKeyTransformer,
     Postgres,
     SubplanNameTransformer,
