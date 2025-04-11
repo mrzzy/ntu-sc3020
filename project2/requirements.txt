@@ -1,8 +1,12 @@
 black==25.1.0
+certifi==2025.1.31
+charset-normalizer==3.4.1
 click==8.1.8
 codespell==2.4.1
+docker==7.1.0
 dotenv==0.9.9
 exceptiongroup==1.2.2
+idna==3.10
 iniconfig==2.1.0
 isort==6.0.1
 mypy-extensions==1.0.0
@@ -14,9 +18,10 @@ psycopg==3.2.6
 psycopg-binary==3.2.6
 pytest==8.3.5
 python-dotenv==1.1.0
+requests==2.32.3
 ruff==0.11.2
 sqlglot==26.12.1
 sqlglotrs==0.4.0
 tomli==2.2.1
 typing_extensions==4.13.0
-python-dotenv==1.1.0
+urllib3==2.4.0
