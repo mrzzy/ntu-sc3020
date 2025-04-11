@@ -34,7 +34,7 @@ jobs:
           
       - name: Setup DB
         run: |
-          docker compose run -d
+          docker compose up -d
           sleep 60
           docker-compose down
           docker-compose logs
