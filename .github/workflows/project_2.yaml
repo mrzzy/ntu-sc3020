@@ -17,12 +17,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10.12'
-          cache: 'pip'
+          python-version: "3.10.12"
+          cache: "pip"
 
       - name: Install Dependencies
-        run: 
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Lint Code
         run: |
@@ -33,3 +32,32 @@ jobs:
       - name: Run Tests
         run: pytest
 
+  publish:
+    strategy:
+      matrix:
+        container:
+          - postgres_tpch
+          - execute_query
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_ID: ghcr.io/${{ github.repository }}/project2_${{ matrix.container }}:latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: project2/${{ matrix.container }}
+          push: true
+          tags: ${{ env.IMAGE_ID }}
