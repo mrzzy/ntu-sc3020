@@ -15,6 +15,7 @@ from preprocessing import (
     EXPR_SINGLE_KEYS,
     CTETransformer,
     DialectTransformer,
+    FilterTransformer,
     IndexKeyTransformer,
     JoinKeyTransformer,
     Postgres,
@@ -117,8 +118,8 @@ def test_cte_transform(db: Postgres, query_sqls: list[str]):
 
 
 def test_join_key_transform(db: Postgres, query_sqls: list[str]):
-    # test: TPC-H 15th query 15.sql
-    plan = db.explain(query_sqls[15 - 1])
+    # test: TPC-H 13th query 13.sql
+    plan = db.explain(query_sqls[13 - 1])
     plan = transform(plan, [JoinKeyTransformer()])
 
     join_keys = []
@@ -131,7 +132,27 @@ def test_join_key_transform(db: Postgres, query_sqls: list[str]):
     apply(plan, collect_join)
 
     assert len(join_keys) == 1
-    assert join_keys[0] == "(supplier.s_suppkey = revenue0.supplier_no)"
+    assert join_keys[0] == "(orders.o_custkey = customer.c_custkey)"
+
+
+def test_filter_transform(db: Postgres, query_sqls: list[str]):
+    # test: TPC-H 1th query 1.sql
+    plan = db.explain(query_sqls[1 - 1])
+    plan = transform(plan, [FilterTransformer()])
+
+    filters = []
+
+    def collect_filter(qep_node: dict, depth: int, subplan: str):
+        if "Filters" in qep_node:
+            filters.append(qep_node["Filters"])
+        return qep_node
+
+    apply(plan, collect_filter)
+
+    assert len(filters) == 1
+    assert filters[0] == [
+        "(lineitem.l_shipdate <= '1998-08-15 00:00:00'::timestamp without time zone)"
+    ]
 
 
 def test_subplan_name_transform(db: Postgres, query_sqls: list[str]):

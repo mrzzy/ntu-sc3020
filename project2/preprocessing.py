@@ -71,14 +71,15 @@ WHERE
 
 
 ## QEP preprocessing
-
+# regular expressions for matching
 SUBPLAN_REGEX = re.compile(r"\((SubPlan \d+)\)")
 CORRECT_ARRAY_REGEX = re.compile(
     r"CAST\('\{(?P<elements>.*)\}' AS ARRAY<(?P<dtype>.*)>\)"
 )
 
-
+# qep node keys with lists of expressions
 EXPR_LIST_KEYS = {"Group Key", "Sort Key", "Output"}
+# qep node keys with single atomic expressions
 EXPR_SINGLE_KEYS = {
     "Filter",
     "Join Filter",
@@ -87,6 +88,18 @@ EXPR_SINGLE_KEYS = {
     "Merge Cond",
     "Recheck Cond",
 }
+# qep node keys with filter 'WHERE' conditions
+FILTER_KEYS = [
+    "Index Cond",
+    "Recheck Cond",
+    "Filter",
+    "Join Filter",
+]
+# qep node keys with join 'ON' conditions
+JOIN_ON_KEYS = [
+    "Hash Cond",
+    "Merge Cond",
+]
 
 
 def apply(plan: dict, transform: Callable[[dict, int, str], dict]) -> dict:
@@ -111,17 +124,6 @@ def apply(plan: dict, transform: Callable[[dict, int, str], dict]) -> dict:
 
     plan = dfs(plan, depth=0, subplan="MainPlan")
     return plan
-
-
-EXPR_LIST_KEYS = {"Group Key", "Sort Key", "Output"}
-EXPR_SINGLE_KEYS = {
-    "Filter",
-    "Join Filter",
-    "Hash Cond",
-    "Index Cond",
-    "Merge Cond",
-    "Recheck Cond",
-}
 
 
 def correct_sql_arrays(expr: str) -> str:
@@ -177,28 +179,6 @@ class IndexKeyTransformer(Transformer):
         relation = "Index Name"
         if relation in qep_node:
             qep_node["Index Key"] = self.db.get_index_key(qep_node[relation])
-        return qep_node
-
-
-class CTETransformer(Transformer):
-    """QEP node transformer conforms 'CTE Scan' to other scan nodetypes."""
-
-    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
-        if qep_node["Node Type"] == "CTE Scan":
-            qep_node["Relation Name"] = qep_node["CTE Name"]
-        return qep_node
-
-
-class JoinKeyTransformer(Transformer):
-    """QEP node transformer that adds 'Join On' join condition for all join nodes"""
-
-    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
-        if "Join Type" in qep_node:
-            for key in EXPR_SINGLE_KEYS:
-                if key in qep_node:
-                    # add join condition to QEP node
-                    qep_node["Join On"] = qep_node[key]
-                    break
         return qep_node
 
 
@@ -270,6 +250,43 @@ class DialectTransformer(ExprTransformer):
         return expr
 
 
+class CTETransformer(Transformer):
+    """QEP node transformer conforms 'CTE Scan' to other scan nodetypes."""
+
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        if qep_node["Node Type"] == "CTE Scan":
+            qep_node["Relation Name"] = qep_node["CTE Name"]
+        return qep_node
+
+
+class JoinKeyTransformer(Transformer):
+    """QEP node transformer standardises Join condition "On" keys"""
+
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        if "Join Type" in qep_node:
+            for key in JOIN_ON_KEYS:
+                if key in qep_node:
+                    if "Join On" in qep_node:
+                        raise ValueError("QEP Node already has 'Join On' condition")
+                    # add join condition to QEP node
+                    qep_node["Join On"] = qep_node[key]
+                    break
+        return qep_node
+
+
+class FilterTransformer(Transformer):
+    """QEP node transformer standardises filter condition keys."""
+
+    def transform(self, qep_node: dict, depth: int, subplan: str) -> dict:
+        for key in FILTER_KEYS:
+            if key in qep_node:
+                filters = qep_node.get("Filters", [])
+                # add filter condition to QEP node
+                filters.append(qep_node[key])
+                qep_node["Filters"] = filters
+        return qep_node
+
+
 def transform(plan: dict, transformers: Iterable[Transformer]) -> dict:
     """Transform the query execution plan using the given transformers."""
 
@@ -311,11 +328,12 @@ def preprocess(sql: str, db: Postgres) -> dict:
     plan = transform(
         plan,
         [
+            IndexKeyTransformer(db),
             SubplanNameTransformer(),
+            DialectTransformer(),
             CTETransformer(),
             JoinKeyTransformer(),
-            IndexKeyTransformer(db),
-            DialectTransformer(),
+            FilterTransformer(),
         ],
     )
     plan = pushup_aliases(plan)
