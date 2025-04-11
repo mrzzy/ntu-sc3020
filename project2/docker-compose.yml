@@ -4,8 +4,6 @@
 # Postgres with TPC-H
 #
 
-version: '3.8'
-
 services:
   postgres:
     image: ghcr.io/mrzzy/ntu-sc3020/project2_postgres_tpch:latest
