@@ -13,3 +13,4 @@ RUN apt-get update && apt-get install --no-install-recommends -y tzdata && \
 ADD https://github.com/google/zetasql/releases/download/2025.03.1/execute_query_linux /usr/local/bin/execute_query
 RUN chmod u+x /usr/local/bin/execute_query
 
+ENTRYPOINT [ "/usr/local/bin/execute_query" ]
