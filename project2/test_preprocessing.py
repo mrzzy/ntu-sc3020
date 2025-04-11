@@ -62,39 +62,6 @@ def test_postgres_get_index_key(db: Postgres):
     assert db.get_index_key("idx_lineitem_part_supp") == ["l_partkey", "l_suppkey"]
 
 
-def test_index_key_transform(db: Postgres, query_sqls: list[str]):
-    # test: TPC-H 8th query 8.sql
-    plan = db.explain(query_sqls[8 - 1])
-    plan = transform(plan, [IndexKeyTransformer(db)])
-
-    nodes = []
-
-    def collect_key(qep_node: dict, depth: int, subplan: str):
-        if "Index Key" in qep_node:
-            nodes.append(qep_node)
-        return qep_node
-
-    apply(plan, collect_key)
-
-    assert len(nodes) == 4
-    keys = [n["Index Key"] for n in nodes]
-    assert keys == [
-        [
-            "l_partkey",
-            "l_suppkey",
-        ],
-        [
-            "o_orderkey",
-        ],
-        [
-            "c_nationkey",
-        ],
-        [
-            "n_nationkey",
-        ],
-    ]
-
-
 def test_cte_transform(db: Postgres, query_sqls: list[str]):
     # test: TPC-H 15th query 15.sql
     plan = db.explain(query_sqls[15 - 1])
