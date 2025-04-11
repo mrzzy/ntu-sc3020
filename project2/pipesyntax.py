@@ -102,15 +102,19 @@ class PipeSyntax:
             for plan in node["Plans"]:
                 self.register_subplan(plan)
 
+    QUOTED_SUBPLAN_REGEX = re.compile(r"`\((SubPlan \d+)\)`")
+
     def resolve_subplan(self, expr: str) -> str:
         """Resolve subplan references in the given expression."""
 
-        if match := re.search(SUBPLAN_REGEX, expr):
+        if match := re.search(self.QUOTED_SUBPLAN_REGEX, expr):
             subplan_name = match[1]
             # resolve subplan references to the actual sql
             if subplan_name in self.subplans["SubPlan"]:
                 return re.sub(
-                    SUBPLAN_REGEX, self.subplans["SubPlan"][subplan_name], expr
+                    self.QUOTED_SUBPLAN_REGEX,
+                    self.subplans["SubPlan"][subplan_name],
+                    expr,
                 )
             log.warning(f"Subplan {subplan_name} not found")
 
