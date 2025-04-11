@@ -159,7 +159,7 @@ class PipeSyntax:
         schema = f"`{node['Schema']}`." if "Schema" in node else ""
         statements = (
             [
-                f"FROM {schema}`{node['Relation Name']}` AS {node['Alias']}",
+                f"FROM {schema}`{node['Relation Name']}` AS `{node['Alias']}`",
             ]
             + self.gen_filters(node)
             + [self.gen_projection(node)]
@@ -247,7 +247,7 @@ class PipeSyntax:
         lhs_sql = operands.pop()
         in_sql = "".join(operands)
 
-        # fetch aliases from child plannodes
+        # fetch aliases from child plans
         alias = lambda n: f" AS `{n['Alias']}`" if "Alias" in n else ""
         lhs_alias = alias(node["Plans"][-2])
         rhs_alias = alias(node["Plans"][-1])
@@ -266,13 +266,26 @@ class PipeSyntax:
         statements = [join_sql] + self.gen_filters(node) + [self.gen_projection(node)]
         return gen_chunk(statements, node["Total Cost"])
 
-    def generate(self, node: dict) -> str:
+    def gen_initplans(self) -> str:
+        """Generate registered initplans as a single WITH SQL statement"""
+        initplans = self.subplans["InitPlan"]
+        if len(initplans) == 0:
+            return ""
+
+        initplan_sqls = [f"`{name}` AS {sql}" for name, sql in initplans.items()]
+        return f"WITH {', '.join(initplan_sqls)}\n"
+
+    def generate(self, node: dict, top_level: bool = False) -> str:
         """Generate pipesyntax SQL statements from given preprocessed QEP node.
         Args:
             node: Preprocessed query execution plan node.
+            top_level: Whether the node is a top level node.
         Returns:
             Pipesyntax SQL statements generated from the QEP node.
         """
+        if top_level:
+            # include initplans in the top level qep node sql
+            return self.gen_initplans() + self.generate(node)
 
         if "Relation Name" in node:
             return self.gen_scan(node)
@@ -316,4 +329,4 @@ def generate(plan: dict) -> str:
         str: Pipesyntax SQL generated from the plan
     """
 
-    return PipeSyntax(plan).generate(plan)
+    return PipeSyntax(plan).generate(plan, top_level=True)
