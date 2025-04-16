@@ -4,17 +4,22 @@
 # Postgres with TPC-H
 #
 
-version: '3.8'
-
 services:
   postgres:
-    build: postgres_tpch
+    image: ghcr.io/mrzzy/ntu-sc3020/project2_postgres_tpch:latest
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
 volumes:
   postgres_data:

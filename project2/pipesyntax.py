@@ -1,421 +1,350 @@
-from typing import Any, Dict, List, Optional
-
-from sqlglot import exp, parse_one
-
-# Global variable to store aggregate expressions
-global_agg_expressions = []
-
-
-# first pass: top-down scan to collect all subplans/initplans
-def collect_plans(qep_node: Dict, plan_dict: Dict[str, Dict]) -> None:
-
-    # Store subplan or initplan
-    if qep_node.get("Parent Relationship") in ["InitPlan", "SubPlan"]:
-        plan_name = qep_node.get("Subplan Name", "Unknown")
-        plan_dict[plan_name] = qep_node
-
-    # Continue traversing
-    for child in qep_node.get("Plans", []):
-        collect_plans(child, plan_dict)
+#
+# SC3020
+# Project 2
+# Pipesyntax Generation
+#
 
 
-def get_max_depth(plan: Dict) -> int:
-    """
-    Helper function
-    Calculate the maximum depth of the plan tree
-    """
-    if not plan:
-        return 0
-    children = plan.get("Plans", [])
-    if not children:
-        return 0
-    return 1 + max(get_max_depth(child) for child in children)
+# setup logging
+import logging
+import re
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
 
 
-def parse_plan(
-    plan: Dict,
-    depth: int = 0,
-    max_depth: Optional[int] = None,
-    plan_dict: Dict[str, Dict] = {},
-) -> str:
-    if not plan:
-        return ""
-    if max_depth is None:
-        max_depth = get_max_depth(plan)
-    if plan_dict is None:
-        plan_dict = {}
-
-    node_type = plan.get("Node Type", "Unknown")
-    children = plan.get("Plans", [])
-    startup_cost = plan.get("Startup Cost", "N/A")
-    total_cost = plan.get("Total Cost", "N/A")
-    cost_display = f"{startup_cost} -> {total_cost}"
-    # indent = "  " * (max_depth - depth)
-    indent = "  " * (max_depth - depth - 1 if max_depth - depth - 1 >= 0 else 0)
-
-    # Skip Hash node
-    # if node_type == "Hash":
-    #     return ""
-    if node_type == "Hash":
-        child_results = []
-        for child in children:
-            child_result = parse_plan(child, depth + 1, max_depth, plan_dict)
-            if child_result:
-                child_results.append(child_result)
-        return "\n".join(child_results) if child_results else ""
-
-    # Initialize result string
-    result = ""
-    current_ops = ""
-
-    # Handle FROM clause for scan operations
-    if node_type in ("Seq Scan", "Index Scan", "Index Only Scan"):
-        table = plan.get("Relation Name", plan.get("Alias", "Unknown"))
-        alias = plan.get("Alias", table)
-
-        # table scan
-        if alias != table:
-            current_ops += f"{indent}FROM {table} AS {alias} -- Cost: {cost_display}\n"
-        else:
-            current_ops += f"{indent}FROM {table} -- Cost: {cost_display}\n"
-
-        # Handle WHERE
-        conditions = []
-
-        if "Filter" in plan:
-            conditions.append(clean_expression(plan["Filter"]))
-        if "Index Cond" in plan:
-            conditions.append(clean_expression(plan["Index Cond"]))
-        if "Recheck Cond" in plan:
-            conditions.append(clean_expression(plan["Recheck Cond"]))
-
-        if conditions:
-            current_ops += (
-                f"{indent}|> WHERE {' AND '.join(conditions)} -- Cost: {cost_display}\n"
-            )
-
-        # For Index Scan or Index Only Scan, add ORDER BY for the indexed column
-        if node_type in ("Index Scan", "Index Only Scan") and "Primary Key" in plan:
-            current_ops += (
-                f"{indent}|> ORDER BY {plan['Primary Key']} -- Cost: {cost_display}\n"
-            )
-
-    # Handle filter for non-scan nodes
-    elif "Filter" in plan:
-        filter_expr = clean_expression(plan["Filter"])
-        current_ops += f"{indent}|> WHERE {filter_expr} -- Cost: {cost_display}\n"
-
-    # Handle other node types
-    if node_type == "Aggregate":
-        # Extract projections if available
-        projections = plan.get("Projections", [])
-        group_keys = plan.get("Group Key", [])
-
-        mode = plan.get("Partial Mode", "")
-
-        # Format aggregate output
-        if projections:
-            output_expr = format_projections(projections)
-        elif global_agg_expressions:
-            output_expr = ", ".join(global_agg_expressions)
-        else:
-            output_expr = "aggregate values"
-
-        # Add Group by if available
-        group_by = ""
-        if group_keys:
-            group_by = f" GROUP BY {', '.join(clean_expression(k) for k in group_keys)}"
-
-        if mode == "Partial":
-            current_ops += f"{indent}|> AGGREGATE PARTIAL {output_expr}{group_by} -- Cost: {cost_display}\n"
-        elif mode == "Finalize":
-            current_ops += f"{indent}|> AGGREGATE FINALIZE {output_expr}{group_by} -- Cost: {cost_display}\n"
-        else:
-            current_ops += f"{indent}|> AGGREGATE {output_expr}{group_by}  -- Cost: {cost_display}\n"
-
-    elif node_type == "Gather":
-        current_ops += f"{indent}|> GATHER -- Cost: {cost_display}\n"
-
-    elif node_type == "Limit":
-        limit_rows = plan.get("Plan Rows", 1)
-        current_ops += f"{indent}|> LIMIT {limit_rows} -- Cost: {cost_display}\n"
-
-    elif node_type == "Sort":
-        keys = plan.get("Sort Key", [])
-        cleaned_keys = [clean_expression(k) for k in keys]
-        current_ops += (
-            f"{indent}|> ORDER BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
-        )
-
-    elif node_type == "Incremental Sort":
-        keys = plan.get("Sort Key", [])
-        presorted_keys = plan.get("Presorted Key", [])
-        cleaned_keys = [clean_expression(k) for k in keys]
-        cleaned_presorted = [clean_expression(k) for k in presorted_keys]
-
-        if presorted_keys:
-            current_ops += f"{indent}|> INCREMENTAL SORT (presorted: {', '.join(cleaned_presorted)}) BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
-        else:
-            current_ops += f"{indent}|> INCREMENTAL SORT BY {', '.join(cleaned_keys)} -- Cost: {cost_display}\n"
-
-    elif node_type == "Nested Loop":
-        join_filter = plan.get("Join Filter", "")
-        join_type = plan.get("Join Type", "Inner").upper()
-
-        join_prefix = ""
-        if join_type == "INNER":
-            join_prefix = ""
-        elif join_type == "LEFT":
-            join_prefix = "LEFT OUTER"
-        elif join_type == "RIGHT":
-            join_prefix = "RIGHT OUTER "
-        elif join_type == "FULL":
-            join_prefix = "FULL OUTER "
-        elif join_type == "SEMI":
-            join_prefix = "SEMI "
-        elif join_type == "ANTI":
-            join_prefix = "ANTI "
-
-        if join_filter:
-            join_filter = clean_expression(join_filter)
-            current_ops += f"{indent}|> {join_prefix}NESTED LOOP ON {join_filter} -- Cost: {cost_display}\n"
-        else:
-            current_ops += (
-                f"{indent}|> {join_prefix}NESTED LOOP -- Cost: {cost_display}\n"
-            )
-
-    elif node_type == "Merge Join":
-        cond = clean_expression(plan.get("Merge Cond", ""))
-        join_type = plan.get("Join Type", "Inner").upper()
-
-        join_prefix = ""
-        if join_type == "INNER":
-            join_prefix = ""  # INNER is default, no prefix needed
-        elif join_type == "LEFT":
-            join_prefix = "LEFT OUTER "
-        elif join_type == "RIGHT":
-            join_prefix = "RIGHT OUTER "
-        elif join_type == "FULL":
-            join_prefix = "FULL OUTER "
-        elif join_type == "SEMI":
-            join_prefix = "SEMI "
-        elif join_type == "ANTI":
-            join_prefix = "ANTI "
-
-        if cond:
-            current_ops += f"{indent}|> {join_prefix}MERGE JOIN ON {cond} -- Cost: {cost_display}\n"
-        else:
-            current_ops += (
-                f"{indent}|> {join_prefix}MERGE JOIN -- Cost: {cost_display}\n"
-            )
-
-    elif node_type == "Hash Join":
-        cond = clean_expression(plan.get("Hash Cond", ""))
-        join_type = plan.get("Join Type", "Inner").upper()
-
-        join_prefix = ""
-        if join_type == "INNER":
-            join_prefix = ""  # INNER is default, no prefix needed
-        elif join_type == "LEFT":
-            join_prefix = "LEFT OUTER "
-        elif join_type == "RIGHT":
-            join_prefix = "RIGHT OUTER "
-        elif join_type == "FULL":
-            join_prefix = "FULL OUTER "
-        elif join_type == "SEMI":
-            join_prefix = "SEMI "
-        elif join_type == "ANTI":
-            join_prefix = "ANTI "
-
-        if cond:
-            current_ops += (
-                f"{indent}|> {join_prefix}HASH JOIN ON {cond} -- Cost: {cost_display}\n"
-            )
-        else:
-            current_ops += (
-                f"{indent}|> {join_prefix}HASH JOIN -- Cost: {cost_display}\n"
-            )
-
-    elif node_type == "Materialize":
-        current_ops += f"{indent}|> MATERIALIZE -- Cost: {cost_display}\n"
-
-    # Handle subplan/initplan
-    if plan.get("Parent Relationship") in ["SubPlan", "InitPlan"]:
-        subplan_name = plan.get("Subplan Name", "Unnamed Plan")
-        current_ops = (
-            f"{indent}|> {subplan_name} -- Cost: {cost_display}\n" + current_ops
-        )
-    # bottom-up build pipe syntax
-    for child in children:
-        if child:
-            child_result = parse_plan(child, depth + 1, max_depth, plan_dict)
-            if child_result:
-                result += child_result + "\n"
-    result += current_ops
-    return result.rstrip()
-
-
-def clean_expression(expr) -> str:
-    if not expr:  # Guard against None
-        return ""
-
-    if isinstance(expr, str):
-        return (
-            expr.replace("::text", "")
-            .replace("::bpchar", "")
-            .replace("::date", "")
-            .replace("::timestamp without time zone", "")
-            .replace("::numeric", "")
-            .replace("~~", "LIKE")
-        )
-    return str(expr)
-
-
-def get_aggregate_expressions(sql: str) -> List[str]:
-    """
-    Extract aggregate expressions from a SQL query using sqlglot.
+def gen_chunk(statements: list[str], cost: float = 0, in_sql: str = "") -> str:
+    """Generate Pipeline SQL from given statements and cost.
 
     Args:
-        sql: The SQL query string
-
-    Returns:
-        A list of aggregate expressions from the SQL query
+        statements: List of SQL statements to chain using "|>" pipeline operator.
+        cost: Cost of the SQL statements.
+        in_sql: SQL statement to prepend to the generated SQL chunk.
+    Returns: Pipesyntax SQL in the format:
+        [<in_sql>
+        |> ]<STATEMENT 1>
+        |> <STATEMENT 2>
+        ...
+        -- cost: <cost>
     """
-    try:
-        # Parse the SQL query
-        ast = parse_one(sql, dialect="postgres")
-
-        # Find the top-level SELECT
-        selects = list(ast.find_all(exp.Select))
-        if not selects:
-            return []
-
-        # Get the expressions from the SELECT statement
-        expressions = selects[0].expressions
-        if not expressions:
-            return []
-
-        # Convert the expressions to strings
-        expr_strings = [str(expr) for expr in expressions]
-        return expr_strings
-    except Exception as e:
-        print(f"Error parsing SQL: {e}")
-        return []
+    # chain in_sql with "|>" operator if it is not empty
+    in_sql_pipe = "" if len(in_sql) == 0 else f"{in_sql}|> "
+    return in_sql_pipe + "\n|> ".join(statements) + f"\n-- cost: {cost}\n"
 
 
-def format_projections(projections: List[str]) -> str:
-    if not projections:
-        return "*"
-
-    return ", ".join(clean_expression(p) for p in projections)
-
-
-def convert_qep_to_pipe_syntax(
-    qep_plan: Dict[str, Any], agg_expressions: List[str] = []
-) -> str:
-    """
-    Convert a Query Execution Plan to pipe syntax.
+def indent(sql: str, indent: int = 2) -> str:
+    """Indent SQL statement with given indent.
 
     Args:
-        qep_plan: The Query Execution Plan from preprocessing.preprocess()
-                 This is already a Python dictionary, not a JSON string
-
+        sql: SQL statement to reindent.
+        indent: Indent level.
     Returns:
-        A string representation of the plan in pipe syntax
+        Indented SQL statement.
     """
-    if not qep_plan:
-        return ""
-    # First pass: collect all subplans and initplans
-    plan_dict = {}
-    collect_plans(qep_plan, plan_dict)
-    # Store aggregate expressions for use in parse_plan
-    global global_agg_expressions
-    global_agg_expressions = agg_expressions or []
-    # Second pass
-    result = parse_plan(qep_plan, plan_dict=plan_dict)
-    result = result.replace(" : ->", " ->")
-
-    return result
+    return "\n".join(" " * indent + line for line in sql.splitlines())
 
 
-def main(preprocessed_plan: Dict[str, Any], sql: str = "") -> str:
-    if not preprocessed_plan:
-        return ""
+def join_clause(join_type: str) -> str:
+    """Convert join type to SQL join clause.
 
-    # If SQL is provided, extract aggregate expressions
-    agg_expressions = []
-    if sql:
-        agg_expressions = get_aggregate_expressions(sql)
+    Args:
+        join_type: Join type in QEP.
+    Returns:
+        Equivalent SQL join clause.
+    """
+    if join_type == "Inner":
+        return "INNER JOIN"
+    if join_type == "Left":
+        return "LEFT JOIN"
+    if join_type == "Right":
+        return "RIGHT JOIN"
+    if join_type == "Full":
+        return "FULL OUTER JOIN"
+    if join_type == "Anti":
+        return "WHERE NOT EXISTS"
+    if join_type == "Semi":
+        return "WHERE EXISTS"
 
-    # Pass aggregate expressions to convert_qep_to_pipe_syntax
-    return convert_qep_to_pipe_syntax(preprocessed_plan, agg_expressions)
+    raise ValueError(f"Unsupported join type: {join_type}")
 
 
-if __name__ == "__main__":
-    # print("***************")
-    # try:
-    #     with open("test.json") as f:
-    #         json_str = f.read()
+class PipeSyntax:
+    """Pipesyntax SQL Generator generates SQL from QEP."""
 
-    #     if not json_str:
-    #         print("Warning: Read empty file")
+    def __init__(self, plan: dict = {}):
+        self.subplans = {
+            "InitPlan": {},
+            "SubPlan": {},
+        }
+        self.register_subplan(plan)
 
-    #     result = convert_qep_to_pipe_syntax(json_str)
-    #     print(result)
+    def register_subplan(self, node: dict):
+        """Register subplans in the given QEP node."""
+        if "Parent Relationship" in node and node["Parent Relationship"] in [
+            "InitPlan",
+            "SubPlan",
+        ]:
+            # recursively generate inner sql of subplan
+            inner = node.copy()
+            inner["Parent Relationship"] = ""
+            inner_sql = gen_chunk(
+                [f"{self.generate(inner)}|> {self.gen_projection(inner)}"],
+                inner["Total Cost"],
+            )
+            self.subplans[node["Parent Relationship"]][
+                node["Subplan Name"]
+            ] = f"(\n{indent(inner_sql)}\n)"
 
-    # except Exception as e:
-    #     print(f"Error in main: {e}")
-    # print("***************")
+        if "Plans" in node:
+            for i, plan in enumerate(node["Plans"]):
+                self.register_subplan(plan)
 
-    import json
-    import os
+    QUOTED_SUBPLAN_REGEX = re.compile(r"`\((SubPlan \d+)\)`")
 
-    from preprocessing import Postgres, preprocess
+    def resolve_subplan(self, expr: str) -> str:
+        """Resolve subplan references in the given expression."""
 
-    print("Testing pipe syntax generation")
+        if match := re.search(self.QUOTED_SUBPLAN_REGEX, expr):
+            subplan_name = match[1]
+            # resolve subplan references to the actual sql
+            if subplan_name in self.subplans["SubPlan"]:
+                return re.sub(
+                    self.QUOTED_SUBPLAN_REGEX,
+                    self.subplans["SubPlan"][subplan_name],
+                    expr,
+                )
+            log.warning(f"Subplan {subplan_name} not found")
 
-    # test
-    # sql = "SELECT * FROM customer WHERE c_custkey = 1"
-    sql = ""
+        return expr
 
-    try:
-        # Connect to PostgreSQL
-        db = Postgres(
-            host="localhost",
-            user="postgres",
-            password=os.environ.get("POSTGRES_PASSWORD", "postgres"),
+    def gen_projection(self, node: dict) -> str:
+        """Generate projection as SELECT statement from QEP node."""
+        # resolve subplan references in projected columns
+        columns = [self.resolve_subplan(c) for c in node["Output"]]
+        return f"SELECT {', '.join(columns)}"
+
+    def gen_filters(self, node: dict) -> list[str]:
+        """Generate filters from QEP node as WHERE statements
+
+        Args:
+            node: Preprocessed QEP node.
+        Returns:
+            List of WHERE statements generated from the filters.
+        """
+        if "Filters" not in node:
+            return []
+        filters = [self.resolve_subplan(f) for f in node["Filters"]]
+        # filters already have parenthesis around them so precedence is already preserved
+        # when joining them with 'AND'
+        return [f"WHERE {' AND '.join(filters)}"]
+
+    def gen_scan(self, node: dict) -> str:
+        """Generate SQL statements from given scan QEP node.
+
+        Args:
+            node: Preprocessed scan QEP node.
+        Returns:
+            Generated SQL statement with cost.
+        """
+
+        if node["Node Type"] == "Bitmap Index Scan":
+            # bitmap index scans only reduces rows for a bitmap heap scan
+            # which will recheck the filter condition on actual rows
+            # we can safely ignore when generating functionally equivalent pipeline sql
+            return ""
+
+        # recursively generate sql in nested plans
+        in_sql = "".join(self.gen_nested(node))
+
+        # generate statements for scan
+        statements = (
+            [
+                f"FROM `{node['Relation Name']}` AS `{node['Alias']}`",
+            ]
+            + self.gen_filters(node)
+            + [self.gen_projection(node)]
         )
 
-        sql = """select
-        l_returnflag,
-        l_linestatus,
-        sum(l_quantity) as sum_qty,
-        sum(l_extendedprice) as sum_base_price,
-        sum(l_extendedprice * (1 - l_discount)) as sum_disc_price,
-        sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
-        avg(l_quantity) as avg_qty,
-        avg(l_extendedprice) as avg_price,
-        avg(l_discount) as avg_disc,
-        count(*) as count_order
-        from
-        lineitem
-        where
-        l_shipdate <= date '1998-12-01' - interval '108' day
-        group by
-        l_returnflag,
-        l_linestatus
-        order by
-        l_returnflag,
-        l_linestatus
-        LIMIT 1;"""
+        if node["Node Type"] in {"Index Only Scan", "Index Scan"}:
+            # index scans read rows in the order of the index
+            # reflect this by adding an ORDER BY
+            direction = "ASC" if node["Scan Direction"] == "Forward" else "DESC"
+            statements.append(f"ORDER BY {', '.join(node['Index Key'])} {direction}")
+        return gen_chunk(statements, node["Total Cost"], in_sql)
 
-        # Preprocess the SQL query
-        qep_plan = preprocess(sql, db)
+    def gen_aggregate(self, node: dict) -> str:
+        """Generate SQL statements from given aggregate QEP node.
 
-        # Convert to pipe syntax
-        print("\n[DEBUG] Pipe syntax output:")
-        result = main(qep_plan, sql)
-        print(result)
+        Args:
+            node: Preprocessed aggregate QEP node.
+        Returns:
+            Generated SQL statements with cost.
+        """
+        # recursively generate sql in nested plans
+        in_sql = "".join(self.gen_nested(node))
 
-    except Exception as e:
-        print(f"Error: {e}")
+        grouping = (
+            f" GROUP BY {', '.join(node['Group Key'])}" if "Group Key" in node else ""
+        )
+        # qep lists grouping keys first but aggregate expects only aggregation expressions
+        group_keys = set()
+        if "Group Key" in node:
+            for group_key in node["Group Key"]:
+                group_keys.add(group_key)
+                if "." in group_key:
+                    # also match unqualified group keys
+                    group_keys.add(group_key.split(".")[1])
+
+        # skip the grouping keys when building aggregates
+        aggregates = [o for o in node["Output"] if o not in group_keys]
+        statements = [
+            f"AGGREGATE {', '.join(aggregates)}{grouping}"
+            # filters needed to implement to 'HAVING' filter on aggregation
+        ] + self.gen_filters(node)
+        return gen_chunk(statements, node["Total Cost"], in_sql)
+
+    def gen_orderby(self, node: dict) -> str:
+        """Generate SQL statements from given sort QEP node.
+
+        Args:
+            node: Preprocessed orderby QEP node.
+        Returns:
+            Generated SQL statements with cost.
+        """
+        # recursively generate sql in nested plans
+        in_sql = "".join(self.gen_nested(node))
+        statements = self.gen_filters(node) + [
+            self.gen_projection(node),
+            f"ORDER BY {', '.join(node['Sort Key'])}",
+        ]
+
+        return gen_chunk(statements, node["Total Cost"], in_sql)
+
+    def gen_limit(self, node: dict) -> str:
+        """Generate SQL statements from given limit QEP node.
+
+        Args:
+            node: Preprocessed limit QEP node.
+        Returns:
+            Generated SQL statements with cost.
+        """
+        # recursively generate sql in nested plans
+        in_sql = "".join(self.gen_nested(node))
+
+        statements = [
+            f"LIMIT {node['Plan Rows']}",
+            self.gen_projection(node),
+        ]
+        return gen_chunk(
+            statements,
+            node["Total Cost"],
+            in_sql,
+        )
+
+    def gen_join(self, node: dict) -> str:
+        """Generate SQL statements from given join QEP node.
+
+        Args:
+            node: Preprocessed join QEP node.
+        Returns:
+            Generated SQL statements with cost.
+        """
+
+        # recursively generate sql in nested plans
+        operands = self.gen_nested(node)
+        if len(operands) < 2:
+            raise ValueError(f"Expected >= 2 operands, got: {len(operands)}")
+        if len(operands) > 2:
+            logging.warning(f"Ignoring {len(operands)-2} operands, assuming Subplan.")
+
+        lhs_sql, rhs_sql = operands[0], operands[1]
+
+        # fetch aliases from child plans
+        def alias(n):
+            return f"|> AS `{n['Alias']}`" if "Alias" in n else ""
+
+        lhs_alias = alias(node["Plans"][0])
+        rhs_alias = alias(node["Plans"][1])
+
+        # generate join statement
+        join_on = (
+            f" ON {self.resolve_subplan(node['Join On'])}" if "Join On" in node else ""
+        )
+
+        join_sql = f"""{lhs_sql + lhs_alias}
+|> {join_clause(node['Join Type'])} (
+{indent(rhs_sql+rhs_alias)}
+){join_on}"""
+
+        statements = [join_sql] + self.gen_filters(node) + [self.gen_projection(node)]
+        return gen_chunk(statements, node["Total Cost"])
+
+    def gen_initplans(self) -> str:
+        """Generate registered initplans as a single WITH SQL statement"""
+        initplans = self.subplans["InitPlan"]
+        if len(initplans) == 0:
+            return ""
+
+        initplan_sqls = [f"`{name}` AS {sql}" for name, sql in initplans.items()]
+        return f"WITH {', '.join(initplan_sqls)}\n"
+
+    def generate(self, node: dict, top_level: bool = False) -> str:
+        """Generate pipesyntax SQL statements from given preprocessed QEP node.
+        Args:
+            node: Preprocessed query execution plan node.
+            top_level: Whether the node is a top level node.
+        Returns:
+            Pipesyntax SQL statements generated from the QEP node.
+        """
+        if "Parent Relationship" in node and node["Parent Relationship"] in [
+            "InitPlan",
+            "SubPlan",
+        ]:
+            # skip already registered subplans
+            log.warning("Skipping node.", node)
+            return ""
+
+        if top_level:
+            # include initplans in the top level qep node sql
+            return self.gen_initplans() + self.generate(node)
+
+        if "Relation Name" in node:
+            return self.gen_scan(node)
+        if node["Node Type"] in ["HashAggregate", "Aggregate", "Group"]:
+            return self.gen_aggregate(node)
+        if "Sort Key" in node:
+            return self.gen_orderby(node)
+        if "Join Type" in node:
+            return self.gen_join(node)
+        if node["Node Type"] == "Limit":
+            return self.gen_limit(node)
+
+        # unknown qep node: ignore node and generate from nested qep nodes
+        log.warning(f"Ignoring node: {node['Node Type']}")
+        return "".join(self.gen_nested(node))
+
+    def gen_nested(self, node: dict) -> list[str]:
+        """Generate SQL statements from nested plans in gven QEP node.
+        Args:
+            node: Preprocessed QEP node.
+        Returns:
+            List of Generated SQL statements.
+        """
+        if "Plans" not in node:
+            return []
+
+        return [self.generate(plan) for plan in node["Plans"]]
+
+
+def generate(plan: dict) -> str:
+    """Generate pipesyntax SQL from given preprocesed QEP plan.
+
+    Traverses the plan preorder generating pipesyntax sql.
+
+    Args:
+        plan : Query execution plan
+    Returns:
+        str: Pipesyntax SQL generated from the plan
+    """
+
+    return PipeSyntax(plan).generate(plan, top_level=True)
