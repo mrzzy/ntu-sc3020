@@ -351,15 +351,28 @@ class PipeSyntax:
 
         # determine type of the set operation 
         node_type = node["Node Type"]
+        # default 
+        operator = "UNION"
         if node_type == "Append":
             operator = "UNION ALL"
         elif node_type == "SetOp":
             command = node.get("Command", "UNION").upper()
-            operator = command if command in ["INTERSECT", "EXCEPT"] else "UNION"
-        else:
-            operator = node_type.upper()
+            strategy = node.get("Strategy", "Sorted").upper()
+            all_flag = node.get("All", False)
 
-        # combine subqueries using the set operator
+            if command == "INTERSECT":
+                operator = "INTERSECT ALL" if all_flag else "INTERSECT"
+            elif command == "EXCEPT":
+                operator = "EXCEPT ALL" if all_flag else "EXCEPT"
+            else:
+                operator = "UNION ALL" if all_flag else "UNION"
+
+            # Optionally note strategy in comment
+            if strategy == "HASHED":
+                operator += "  -- hashed"
+        else:
+            log.warning(f"Unrecognized set operation node type: {node_type}, using default UNION")
+
         combined = f"\n{operator}\n".join(child_sql)
         return f"{combined}\n-- cost: {node['Total Cost']}\n"
         
