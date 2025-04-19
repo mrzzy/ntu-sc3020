@@ -354,7 +354,8 @@ class PipeSyntax:
         if node_type == "Append":
             operator = "UNION ALL"
         elif node_type == "SetOp":
-            operator = node.get("Strategy", "UNION").upper()
+            command = node.get("Command", "UNION").upper()
+            operator = command if command in ["INTERSECT", "EXCEPT"] else "UNION"
         else:
             operator = node_type.upper()
 
